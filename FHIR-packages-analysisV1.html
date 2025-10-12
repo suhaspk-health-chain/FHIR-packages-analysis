@@ -2079,10 +2079,8 @@ cli_alert_success(sprintf(&quot;NDJSON lines: %d | JSON array length: %d&quot;, 
 if (length(all_rows) &gt; 0) print(utils::head(all_rows, 2))
 </code></pre>
 </div>
-<div id="loading-the-data" class="section level2">
-<h2>Loading the data</h2>
-<pre class="r"><code>library(jsonlite)</code></pre>
-<pre><code>## Warning: package &#39;jsonlite&#39; was built under R version 4.5.1</code></pre>
+<div id="libraries" class="section level2">
+<h2>Libraries</h2>
 <pre class="r"><code># read full JSON array
 data &lt;- fromJSON(&quot;xig_resources.json&quot;, flatten = TRUE)
 
@@ -2090,9 +2088,10 @@ data &lt;- fromJSON(&quot;xig_resources.json&quot;, flatten = TRUE)
 df &lt;- as.data.frame(data)
 
 # view summary
-cat(&quot;Rows:&quot;, nrow(df), &quot; | Columns:&quot;, ncol(df), &quot;\n&quot;)</code></pre>
-<pre><code>## Rows: 75411  | Columns: 12</code></pre>
-<pre class="r"><code>str(df)</code></pre>
+kable(
+  str(df),
+  align = &quot;c&quot;
+)</code></pre>
 <pre><code>## &#39;data.frame&#39;:    75411 obs. of  12 variables:
 ##  $ package_text : chr  &quot;hl7.fhir.uv.vulcan-schedule&quot; &quot;smart.who.int.base&quot; &quot;hl7.fhir.uv.pharm-quality&quot; &quot;hl7.fhir.uv.pharm-quality&quot; ...
 ##  $ package_href : chr  &quot;https://build.fhir.org/ig/HL7/Vulcan-schedule-ig/&quot; &quot;https://build.fhir.org/ig/WorldHealthOrganization/smart-base/&quot; &quot;https://build.fhir.org/ig/HL7/uv-dx-pq/&quot; &quot;https://build.fhir.org/ig/HL7/uv-dx-pq/&quot; ...
@@ -2106,62 +2105,6 @@ cat(&quot;Rows:&quot;, nrow(df), &quot; | Columns:&quot;, ncol(df), &quot;\n&quo
 ##  $ date         : chr  &quot;2023-04&quot; &quot;2025-06&quot; &quot;2024-05&quot; &quot;2024-05&quot; ...
 ##  $ realm        : chr  &quot;uv&quot; &quot;&quot; &quot;uv&quot; &quot;uv&quot; ...
 ##  $ auth         : chr  &quot;hl7&quot; &quot;who&quot; &quot;hl7&quot; &quot;hl7&quot; ...</code></pre>
-<pre class="r"><code>head(df)</code></pre>
-<pre><code>##                  package_text
-## 1 hl7.fhir.uv.vulcan-schedule
-## 2          smart.who.int.base
-## 3   hl7.fhir.uv.pharm-quality
-## 4   hl7.fhir.uv.pharm-quality
-## 5           hl7.fhir.pl.ssidl
-## 6           hl7.fhir.pl.ssidl
-##                                                    package_href version
-## 1             https://build.fhir.org/ig/HL7/Vulcan-schedule-ig/      R4
-## 2 https://build.fhir.org/ig/WorldHealthOrganization/smart-base/      R4
-## 3                       https://build.fhir.org/ig/HL7/uv-dx-pq/      R5
-## 4                       https://build.fhir.org/ig/HL7/uv-dx-pq/      R5
-## 5                     https://build.fhir.org/ig/SSIDL/ssidl-ig/      R5
-## 6                     https://build.fhir.org/ig/SSIDL/ssidl-ig/      R5
-##                                            identity_text
-## 1 ActivityDefinition/H2Q-MC-LZZT-Vital-Signs-Temperature
-## 2             ActivityDefinition/SGDecisionTableGuidance
-## 3                   ActivityDefinition/LyophilizationAct
-## 4 ActivityDefinition/activitydefinition-test-drug-pq-ex1
-## 5      ActivityDefinition/SsidlLabCatalogService-58410-2
-## 6       ActivityDefinition/SsidlLabCatalogService-6690-2
-##                                                                                              identity_href
-## 1    /xig/resource/hl7.fhir.uv.vulcan-soa%7Ccurrent/ActivityDefinition/H2Q-MC-LZZT-Vital-Signs-Temperature
-## 2                    /xig/resource/smart.who.int.base%7Ccurrent/ActivityDefinition/SGDecisionTableGuidance
-## 3                   /xig/resource/hl7.fhir.uv.pharm-quality%7Ccurrent/ActivityDefinition/LyophilizationAct
-## 4 /xig/resource/hl7.fhir.uv.pharm-quality%7Ccurrent/ActivityDefinition/activitydefinition-test-drug-pq-ex1
-## 5              /xig/resource/hl7.fhir.pl.ssidl%7Ccurrent/ActivityDefinition/SsidlLabCatalogService-58410-2
-## 6               /xig/resource/hl7.fhir.pl.ssidl%7Ccurrent/ActivityDefinition/SsidlLabCatalogService-6690-2
-##                                                                          name_title
-## 1                                                         Vital Signs - Temperature
-## 2                                                           SGDecisionTableGuidance
-## 3                                                                    Lyophilization
-## 4 Example of ActivityDefinition - Test for test set: Long-term - 25°C/60% RH - XYZ.
-## 5                                                     Morfologia krwi 8-parametrowa
-## 6                                                                         Leukocyty
-##   status fmm wg    date realm auth
-## 1 active        2023-04    uv  hl7
-## 2  draft        2025-06        who
-## 3 active        2024-05    uv  hl7
-## 4 active        2024-05    uv  hl7
-## 5 active        2025-08    pl  hl7
-## 6 active        2025-08    pl  hl7</code></pre>
-<pre class="r"><code>summary(df)</code></pre>
-<pre><code>##  package_text       package_href         version          identity_text     
-##  Length:75411       Length:75411       Length:75411       Length:75411      
-##  Class :character   Class :character   Class :character   Class :character  
-##  Mode  :character   Mode  :character   Mode  :character   Mode  :character  
-##  identity_href       name_title           status              fmm           
-##  Length:75411       Length:75411       Length:75411       Length:75411      
-##  Class :character   Class :character   Class :character   Class :character  
-##  Mode  :character   Mode  :character   Mode  :character   Mode  :character  
-##       wg                date              realm               auth          
-##  Length:75411       Length:75411       Length:75411       Length:75411      
-##  Class :character   Class :character   Class :character   Class :character  
-##  Mode  :character   Mode  :character   Mode  :character   Mode  :character</code></pre>
 </div>
 </div>
 

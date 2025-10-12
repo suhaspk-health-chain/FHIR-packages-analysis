@@ -18,6 +18,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
 ```
 
 # Introduction
@@ -204,11 +205,17 @@ if (length(all_rows) > 0) print(utils::head(all_rows, 2))
 
 ```
 
-## Loading the data
+## Libraries
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+library(jsonlite)
+library(tidyr)
+library(dplyr)
+library(knitr)
+```
+
 
 ```{r}
-library(jsonlite)
-
 # read full JSON array
 data <- fromJSON("xig_resources.json", flatten = TRUE)
 
@@ -216,11 +223,13 @@ data <- fromJSON("xig_resources.json", flatten = TRUE)
 df <- as.data.frame(data)
 
 # view summary
-cat("Rows:", nrow(df), " | Columns:", ncol(df), "\n")
-str(df)
-head(df)
-
-summary(df)
+kable(
+  str(df),
+  align = "c"
+)
 
 ```
+
+
+
 
