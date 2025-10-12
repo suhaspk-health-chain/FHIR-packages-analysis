@@ -308,9 +308,36 @@ library(readr)
 library(stringr)
 library(lubridate)
 
+
 # Visualization
+library(scales)
 library(ggplot2)
-library(ggdark)
+theme_healthchain &lt;- function(base_size = 14) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title = element_text(
+        face = &quot;bold&quot;,
+        color = &quot;#f26d21&quot;,       # Health Chain orange
+        hjust = 0.5,
+        size = base_size + 2
+      ),
+      axis.title = element_text(color = &quot;#ffffff&quot;),
+      axis.text = element_text(color = &quot;#dce6f1&quot;),
+      panel.background = element_rect(fill = &quot;#0c223f&quot;, color = NA),
+      plot.background  = element_rect(fill = &quot;#0c223f&quot;, color = NA),
+      legend.background = element_rect(fill = &quot;#0c223f&quot;, color = NA),
+      legend.text = element_text(color = &quot;#dce6f1&quot;),
+      legend.title = element_text(color = &quot;#ffffff&quot;, face = &quot;bold&quot;),
+      strip.background = element_rect(fill = &quot;#123358&quot;, color = NA),
+      strip.text = element_text(color = &quot;#ffffff&quot;, face = &quot;bold&quot;),
+      panel.grid.major = element_line(color = &quot;#1d3557&quot;, size = 0.3),
+      panel.grid.minor = element_blank(),
+      legend.position = &quot;none&quot;
+    )
+}
+
+# Apply globally to all ggplots
+theme_set(theme_healthchain())
 library(scales)
 library(viridis)
 
@@ -828,6 +855,286 @@ necessary for deeper organizational or maturity-related analyses. This
 quality profile makes the dataset ideal for exploratory visualization,
 version distribution analysis, and metadata completeness assessment
 across the FHIR ecosystem.</p>
+</div>
+</div>
+<div id="statistical-approach" class="section level1">
+<h1>Statistical Approach</h1>
+<p>This exploratory analysis primarily employs <strong>Descriptive
+Statistics</strong> to understand the structure and characteristics of
+the FHIR Package dataset. Since the data represents the complete
+population of publicly available FHIR Implementation Guides (IGs) and
+related resources from <em>packages2.fhir.org/xig</em>, inferential
+techniques-used to make generalizations from samples-are not
+required.</p>
+<p><strong>Descriptive statistics</strong> provide a concise summary of
+the dataset through measures such as counts, proportions, unique values,
+and completeness rates. These summaries, combined with graphical
+visualizations, reveal key insights into the distribution of FHIR
+versions, maturity levels (FMM), working group activity, and publication
+trends over time.</p>
+<p>By focusing on descriptive methods, this analysis aims to
+characterize the dataset rather than predict or infer. The results
+highlight patterns, outliers, and relationships that inform a deeper
+understanding of how the FHIR ecosystem is evolving. Future work could
+incorporate inferential or predictive modeling to test specific
+hypotheses-such as identifying factors influencing resource maturity-but
+the current phase emphasizes clear, evidence-based exploration of the
+available data.</p>
+</div>
+<div id="basic-eda-overview" class="section level1">
+<h1>Basic EDA: Overview</h1>
+<p>This section focuses on understanding, cleaning, and summarizing the
+FHIR package dataset. The goal is to get a clear view of what data you
+have, how it’s distributed, and whether it’s reliable.</p>
+<p>Here’s what your Basic EDA should include:</p>
+<div id="missing-value-display" class="section level2">
+<h2>Missing Value Display</h2>
+<pre class="r"><code>DataExplorer::plot_missing(df,
+                           title = &quot;Percentage of Missing Values&quot;,
+                           ggtheme = theme_healthchain(base_size = 14)
+                          ) </code></pre>
+<p><img src="FHIR-packages-analysisV1_files/figure-html/missing-value-plot-1.png" width="672" /></p>
+<pre class="r"><code>df %&gt;% 
+  count(version) %&gt;%
+  ggplot(aes(x = version, y = n, fill = version)) +
+  geom_bar(stat = &quot;identity&quot;) +
+  geom_text(aes(label = n), vjust = -0.3, size = 4, color = &quot;#f0f4f8&quot;) +
+  labs(
+    title = &quot;FHIR Package Distribution by Version&quot;,
+    x = &quot;FHIR Version&quot;,
+    y = &quot;Package Count&quot;
+  ) </code></pre>
+<p><img src="FHIR-packages-analysisV1_files/figure-html/pkg-dist-version-1.png" width="672" /></p>
+<pre class="r"><code>df %&gt;%
+  count(status) %&gt;%
+  ggplot(aes(x = status, y = n, fill = status)) +
+  geom_col() +
+  geom_text(aes(label = n), vjust = -0.3, color = &quot;#f0f4f8&quot;, size = 4) +
+  labs(
+    title = &quot;FHIR Package Distribution by Status&quot;,
+    x = &quot;Status&quot;,
+    y = &quot;Count&quot;
+  ) +
+  theme_healthchain() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,             # tilt labels
+      hjust = 1,              # align text
+      vjust = 1,              
+      size = 12,
+      color = &quot;#dce6f1&quot;
+    ),
+    plot.margin = margin(10, 10, 20, 10)
+  )</code></pre>
+<p><img src="FHIR-packages-analysisV1_files/figure-html/pkg-dist-status-1.png" width="672" /></p>
+<pre class="r"><code>auth_summary &lt;- df %&gt;%
+  count(auth, name = &quot;Package_Count&quot;) %&gt;%
+  arrange(desc(Package_Count))
+
+kable(
+  auth_summary,
+  format = &quot;html&quot;,
+  booktabs = TRUE
+) %&gt;%
+  kable_styling(
+    full_width = FALSE,
+    font_size = 12,
+    bootstrap_options = c(&quot;striped&quot;, &quot;condensed&quot;, &quot;responsive&quot;)
+  ) </code></pre>
+<table class="table table-striped table-condensed table-responsive" style="font-size: 12px; color: black; width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+auth
+</th>
+<th style="text-align:right;">
+Package_Count
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+hl7
+</td>
+<td style="text-align:right;">
+42405
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+</td>
+<td style="text-align:right;">
+25640
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+national
+</td>
+<td style="text-align:right;">
+3470
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+who
+</td>
+<td style="text-align:right;">
+2514
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ihe
+</td>
+<td style="text-align:right;">
+1382
+</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code># Count missing and empty values in auth
+table &lt;- df %&gt;%
+  summarise(
+    total_rows = n(),
+    missing_auth = sum(is.na(auth)),
+    empty_auth   = sum(auth == &quot;&quot;, na.rm = TRUE),
+    total_missing = missing_auth + empty_auth,
+    missing_percent = round((total_missing / total_rows) * 100, 2)
+  )
+kable(
+  table,
+  format = &quot;html&quot;,
+  booktabs = TRUE
+) %&gt;%
+  kable_styling(
+    full_width = FALSE,
+    font_size = 12,
+    bootstrap_options = c(&quot;striped&quot;, &quot;condensed&quot;, &quot;responsive&quot;)
+  ) </code></pre>
+<table class="table table-striped table-condensed table-responsive" style="font-size: 12px; color: black; width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:right;">
+total_rows
+</th>
+<th style="text-align:right;">
+missing_auth
+</th>
+<th style="text-align:right;">
+empty_auth
+</th>
+<th style="text-align:right;">
+total_missing
+</th>
+<th style="text-align:right;">
+missing_percent
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+75411
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+25640
+</td>
+<td style="text-align:right;">
+25640
+</td>
+<td style="text-align:right;">
+34
+</td>
+</tr>
+</tbody>
+</table>
+<p>The plot shows 0% because DataExplorer counts only NA values as
+missing, while your auth field has empty strings (““) (and maybe
+whitespace), not NA.</p>
+<pre class="r"><code>df %&gt;%
+  count(status, version) %&gt;%
+  ggplot(aes(x = status, y = n, fill = status)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = scales::comma(n)), 
+            vjust = -0.5,
+            size = 4.5,  # Increased from 3.5
+            color = &quot;#f0f4f8&quot;,
+            fontface = &quot;bold&quot;) +  # Made labels bold
+  facet_wrap(~ version, ncol = 3, scales = &quot;free&quot;) +
+  labs(
+    title = &quot;FHIR Package Distribution by Version and Status&quot;,
+    x = &quot;Status&quot;,
+    y = &quot;Package Count&quot;
+  ) +
+  theme_healthchain() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 14, face = &quot;bold&quot;),  # Increased from 11
+    axis.text.y = element_text(size = 13, face = &quot;bold&quot;),  # Added y-axis text size
+    axis.title.x = element_text(size = 16, face = &quot;bold&quot;, margin = margin(t = 15)),  # Added x-axis title
+    axis.title.y = element_text(size = 16, face = &quot;bold&quot;, margin = margin(r = 15)),  # Added y-axis title
+    plot.title = element_text(size = 18, face = &quot;bold&quot;, hjust = 0.5, margin = margin(b = 20)),  # Added title
+    strip.text = element_text(size = 16, face = &quot;bold&quot;, margin = margin(b = 10)),  # Increased from 15
+    panel.spacing = unit(2, &quot;lines&quot;),
+    plot.margin = margin(t = 15, r = 15, b = 15, l = 15)  # Increased margins
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.20)))</code></pre>
+<p><img src="FHIR-packages-analysisV1_files/figure-html/pkg-dist-version-stat-1.png" width="1344" /></p>
+<pre class="r"><code>library(dplyr)
+library(ggplot2)
+library(scales)
+
+# Prepare data
+plot_data &lt;- df %&gt;%
+  mutate(
+    status = ifelse(is.na(status) | status == &quot;&quot;, &quot;Unknown&quot;, status),
+    auth = ifelse(is.na(auth) | auth == &quot;&quot;, &quot;Unknown&quot;, auth)
+  ) %&gt;%
+  count(version, status, name = &quot;n&quot;) %&gt;%
+  mutate(version = factor(version, levels = sort(unique(version))))
+
+# Create faceted bar chart
+ggplot(plot_data, aes(x = version, y = n, fill = version)) +
+  geom_col(width = 0.7, show.legend = FALSE) +
+  geom_text(aes(label = comma(n)), 
+            vjust = -0.5,
+            size = 4,
+            fontface = &quot;bold&quot;,
+            color = &quot;#f0f4f8&quot;) +
+  facet_wrap(~ status, scales = &quot;free_y&quot;, ncol = 3) +
+  scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.15))) +
+  scale_fill_manual(
+    values = c(
+      &quot;R3&quot; = &quot;#2E86AB&quot;,
+      &quot;R4&quot; = &quot;#A23B72&quot;, 
+      &quot;R4B&quot; = &quot;#F18F01&quot;,
+      &quot;R5&quot; = &quot;#06A77D&quot;,
+      &quot;R6&quot; = &quot;#8B4513&quot;
+    )
+  ) +
+  labs(
+    title = &quot;FHIR Package Distribution by Version and Status&quot;,
+    x = &quot;FHIR Version&quot;,
+    y = &quot;Package Count&quot;
+  ) +
+  theme_healthchain() +
+  theme(
+    plot.title = element_text(size = 20, face = &quot;bold&quot;, hjust = 0.5, 
+                              margin = margin(b = 25), color = &quot;#f0f4f8&quot;),
+    axis.text.x = element_text(size = 13, face = &quot;bold&quot;, color = &quot;#f0f4f8&quot;),
+    axis.text.y = element_text(size = 11, color = &quot;#f0f4f8&quot;),
+    axis.title.x = element_text(size = 16, face = &quot;bold&quot;, margin = margin(t = 15), color = &quot;#f0f4f8&quot;),
+    axis.title.y = element_text(size = 16, face = &quot;bold&quot;, margin = margin(r = 15), color = &quot;#f0f4f8&quot;),
+    strip.text = element_text(size = 14, face = &quot;bold&quot;, margin = margin(b = 10), color = &quot;#f0f4f8&quot;),
+    panel.spacing = unit(2, &quot;lines&quot;),
+    panel.grid.major.y = element_line(color = &quot;#2c3e50&quot;, size = 0.3),
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
+  )</code></pre>
+<p><img src="FHIR-packages-analysisV1_files/figure-html/pkg-dist-version-stat-auth-1.png" width="1344" /></p>
 </div>
 </div>
 

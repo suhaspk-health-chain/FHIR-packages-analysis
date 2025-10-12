@@ -63,9 +63,36 @@ library(readr)
 library(stringr)
 library(lubridate)
 
+
 # Visualization
+library(scales)
 library(ggplot2)
-library(ggdark)
+theme_healthchain <- function(base_size = 14) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      plot.title = element_text(
+        face = "bold",
+        color = "#f26d21",       # Health Chain orange
+        hjust = 0.5,
+        size = base_size + 2
+      ),
+      axis.title = element_text(color = "#ffffff"),
+      axis.text = element_text(color = "#dce6f1"),
+      panel.background = element_rect(fill = "#0c223f", color = NA),
+      plot.background  = element_rect(fill = "#0c223f", color = NA),
+      legend.background = element_rect(fill = "#0c223f", color = NA),
+      legend.text = element_text(color = "#dce6f1"),
+      legend.title = element_text(color = "#ffffff", face = "bold"),
+      strip.background = element_rect(fill = "#123358", color = NA),
+      strip.text = element_text(color = "#ffffff", face = "bold"),
+      panel.grid.major = element_line(color = "#1d3557", size = 0.3),
+      panel.grid.minor = element_blank(),
+      legend.position = "none"
+    )
+}
+
+# Apply globally to all ggplots
+theme_set(theme_healthchain())
 library(scales)
 library(viridis)
 
@@ -158,4 +185,193 @@ The FHIR package dataset demonstrates a generally strong structural quality, wit
 However, several descriptive and governance-related attributes - notably `fmm`, `wg`, `realm`, and `auth` - exhibit significant sparsity. The FHIR Maturity Model (`fmm`) field is largely missing, limiting the ability to analyze maturity progression across resources. Similarly, `wg` (Working Group) and realm values are incomplete for many packages, suggesting gaps in metadata publication or inconsistencies in source documentation.
 
 Textual attributes such as `name_title` and `status` are well-populated and diverse, offering good analytical potential for classification and pattern exploration. Overall, while the dataset provides robust coverage for technical and structural aspects, additional enrichment or cross-referencing may be necessary for deeper organizational or maturity-related analyses. This quality profile makes the dataset ideal for exploratory visualization, version distribution analysis, and metadata completeness assessment across the FHIR ecosystem.
+
+# Statistical Approach
+
+This exploratory analysis primarily employs **Descriptive Statistics** to understand the structure and characteristics of the FHIR Package dataset. Since the data represents the complete population of publicly available FHIR Implementation Guides (IGs) and related resources from _packages2.fhir.org/xig_, inferential techniques-used to make generalizations from samples-are not required.
+
+**Descriptive statistics** provide a concise summary of the dataset through measures such as counts, proportions, unique values, and completeness rates. These summaries, combined with graphical visualizations, reveal key insights into the distribution of FHIR versions, maturity levels (FMM), working group activity, and publication trends over time.
+
+By focusing on descriptive methods, this analysis aims to characterize the dataset rather than predict or infer. The results highlight patterns, outliers, and relationships that inform a deeper understanding of how the FHIR ecosystem is evolving. Future work could incorporate inferential or predictive modeling to test specific hypotheses-such as identifying factors influencing resource maturity-but the current phase emphasizes clear, evidence-based exploration of the available data.
+
+# Basic EDA: Overview
+
+This section focuses on understanding, cleaning, and summarizing the FHIR package dataset.
+The goal is to get a clear view of what data you have, how it’s distributed, and whether it’s reliable.
+
+Here’s what your Basic EDA should include:
+
+## Missing Value Display
+```{r missing-value-plot}
+DataExplorer::plot_missing(df,
+                           title = "Percentage of Missing Values",
+                           ggtheme = theme_healthchain(base_size = 14)
+                          ) 
+```
+
+
+```{r pkg-dist-version}
+df %>% 
+  count(version) %>%
+  ggplot(aes(x = version, y = n, fill = version)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = n), vjust = -0.3, size = 4, color = "#f0f4f8") +
+  labs(
+    title = "FHIR Package Distribution by Version",
+    x = "FHIR Version",
+    y = "Package Count"
+  ) 
+```
+
+```{r pkg-dist-status}
+df %>%
+  count(status) %>%
+  ggplot(aes(x = status, y = n, fill = status)) +
+  geom_col() +
+  geom_text(aes(label = n), vjust = -0.3, color = "#f0f4f8", size = 4) +
+  labs(
+    title = "FHIR Package Distribution by Status",
+    x = "Status",
+    y = "Count"
+  ) +
+  theme_healthchain() +
+  theme(
+    axis.text.x = element_text(
+      angle = 45,             # tilt labels
+      hjust = 1,              # align text
+      vjust = 1,              
+      size = 12,
+      color = "#dce6f1"
+    ),
+    plot.margin = margin(10, 10, 20, 10)
+  )
+
+
+```
+
+```{r}
+auth_summary <- df %>%
+  count(auth, name = "Package_Count") %>%
+  arrange(desc(Package_Count))
+
+kable(
+  auth_summary,
+  format = "html",
+  booktabs = TRUE
+) %>%
+  kable_styling(
+    full_width = FALSE,
+    font_size = 12,
+    bootstrap_options = c("striped", "condensed", "responsive")
+  ) 
+# Count missing and empty values in auth
+table <- df %>%
+  summarise(
+    total_rows = n(),
+    missing_auth = sum(is.na(auth)),
+    empty_auth   = sum(auth == "", na.rm = TRUE),
+    total_missing = missing_auth + empty_auth,
+    missing_percent = round((total_missing / total_rows) * 100, 2)
+  )
+kable(
+  table,
+  format = "html",
+  booktabs = TRUE
+) %>%
+  kable_styling(
+    full_width = FALSE,
+    font_size = 12,
+    bootstrap_options = c("striped", "condensed", "responsive")
+  ) 
+```
+The plot shows 0% because DataExplorer counts only NA values as missing, while your auth field has empty strings ("") (and maybe whitespace), not NA.
+
+```{r pkg-dist-version-stat,fig.width=14, fig.height=10}
+df %>%
+  count(status, version) %>%
+  ggplot(aes(x = status, y = n, fill = status)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = scales::comma(n)), 
+            vjust = -0.5,
+            size = 4.5,  # Increased from 3.5
+            color = "#f0f4f8",
+            fontface = "bold") +  # Made labels bold
+  facet_wrap(~ version, ncol = 3, scales = "free") +
+  labs(
+    title = "FHIR Package Distribution by Version and Status",
+    x = "Status",
+    y = "Package Count"
+  ) +
+  theme_healthchain() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 14, face = "bold"),  # Increased from 11
+    axis.text.y = element_text(size = 13, face = "bold"),  # Added y-axis text size
+    axis.title.x = element_text(size = 16, face = "bold", margin = margin(t = 15)),  # Added x-axis title
+    axis.title.y = element_text(size = 16, face = "bold", margin = margin(r = 15)),  # Added y-axis title
+    plot.title = element_text(size = 18, face = "bold", hjust = 0.5, margin = margin(b = 20)),  # Added title
+    strip.text = element_text(size = 16, face = "bold", margin = margin(b = 10)),  # Increased from 15
+    panel.spacing = unit(2, "lines"),
+    plot.margin = margin(t = 15, r = 15, b = 15, l = 15)  # Increased margins
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.20)))
+
+
+
+```
+
+
+```{r pkg-dist-version-stat-auth, fig.width=14, fig.height=12}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+# Prepare data
+plot_data <- df %>%
+  mutate(
+    status = ifelse(is.na(status) | status == "", "Unknown", status),
+    auth = ifelse(is.na(auth) | auth == "", "Unknown", auth)
+  ) %>%
+  count(version, status, name = "n") %>%
+  mutate(version = factor(version, levels = sort(unique(version))))
+
+# Create faceted bar chart
+ggplot(plot_data, aes(x = version, y = n, fill = version)) +
+  geom_col(width = 0.7, show.legend = FALSE) +
+  geom_text(aes(label = comma(n)), 
+            vjust = -0.5,
+            size = 4,
+            fontface = "bold",
+            color = "#f0f4f8") +
+  facet_wrap(~ status, scales = "free_y", ncol = 3) +
+  scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.15))) +
+  scale_fill_manual(
+    values = c(
+      "R3" = "#2E86AB",
+      "R4" = "#A23B72", 
+      "R4B" = "#F18F01",
+      "R5" = "#06A77D",
+      "R6" = "#8B4513"
+    )
+  ) +
+  labs(
+    title = "FHIR Package Distribution by Version and Status",
+    x = "FHIR Version",
+    y = "Package Count"
+  ) +
+  theme_healthchain() +
+  theme(
+    plot.title = element_text(size = 20, face = "bold", hjust = 0.5, 
+                              margin = margin(b = 25), color = "#f0f4f8"),
+    axis.text.x = element_text(size = 13, face = "bold", color = "#f0f4f8"),
+    axis.text.y = element_text(size = 11, color = "#f0f4f8"),
+    axis.title.x = element_text(size = 16, face = "bold", margin = margin(t = 15), color = "#f0f4f8"),
+    axis.title.y = element_text(size = 16, face = "bold", margin = margin(r = 15), color = "#f0f4f8"),
+    strip.text = element_text(size = 14, face = "bold", margin = margin(b = 10), color = "#f0f4f8"),
+    panel.spacing = unit(2, "lines"),
+    panel.grid.major.y = element_line(color = "#2c3e50", size = 0.3),
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20)
+  )
+
+
+```
 
