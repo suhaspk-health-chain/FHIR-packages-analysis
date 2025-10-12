@@ -1,0 +1,191 @@
+/* ========== Base Setup ========== */
+body {
+  background-color: #ffffff;
+  color: #1a1a1a;
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* ========== Headings ========== */
+h1, h2, h3, h4, h5, h6 {
+  color: #004188;
+  font-weight: 600;
+}
+
+h1 {
+  border-bottom: 2px solid #f26d21;
+  padding-bottom: 0.3em;
+}
+
+/* ========== Navbar ========== */
+.navbar, .quarto-navbar {
+  background-color: #ffffff;
+  border-bottom: 2px solid #f26d21;
+}
+
+.navbar a, .navbar-brand, .quarto-navbar a {
+  color: #004188 !important;
+  font-weight: 500;
+}
+
+.navbar a:hover {
+  color: #f26d21 !important;
+}
+
+/* ========== Footer ========== */
+footer, .page-footer {
+  background-color: #f5f5f5;
+  color: #666666;
+  padding: 1rem 0;
+  border-top: 2px solid #f26d21;
+  text-align: center;
+}
+
+/* ========== Links ========== */
+a {
+  color: #004188;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #f26d21;
+  text-decoration: underline;
+}
+
+/* ========== Buttons ========== */
+.btn, .btn-primary {
+  background-color: #004188;
+  border-color: #004188;
+  color: #ffffff;
+}
+
+.btn:hover {
+  background-color: #003366;
+  border-color: #003366;
+  color: #ffffff;
+}
+
+/* ========== Code Blocks ========== */
+pre, code {
+  background-color: #f4f4f4;
+  color: #333333;
+  font-family: 'Courier New', monospace;
+  padding: 0.5em;
+  border-radius: 5px;
+}
+
+/* ========== Tables ========== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #ffffff;
+  color: #1a1a1a;
+}
+
+th, td {
+  border: 1px solid #dddddd;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+thead {
+  background-color: #e6f0ff;
+  color: #004188;
+}
+
+/* ========== Blockquotes ========== */
+blockquote {
+  border-left: 4px solid #f26d21;
+  background-color: #fff8f3;
+  padding: 1em;
+  color: #333333;
+  font-style: italic;
+}
+
+/* ========== Cards and Panels ========== */
+.card, .panel {
+  background-color: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* ========== Quarto Sidebar ========== */
+.sidebar {
+  background-color: #f5f5f5;
+  color: #1a1a1a;
+}
+
+.sidebar .sidebar-title {
+  color: #004188;
+  font-weight: bold;
+}
+
+.sidebar a {
+  color: #004188;
+}
+
+.sidebar a:hover {
+  color: #f26d21;
+}
+
+/* ========== Alerts ========== */
+.alert {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 5px;
+}
+
+.alert-info {
+  background-color: #e6f7ff;
+  color: #004188;
+  border-left: 5px solid #004188;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  color: #664d03;
+  border-left: 5px solid #f26d21;
+}
+
+/* ========== Form Elements ========== */
+input, select, textarea {
+  background-color: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid #cccccc;
+  border-radius: 4px;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #004188;
+  box-shadow: 0 0 5px #cce0ff;
+}
+
+/* ========== Miscellaneous ========== */
+hr {
+  border: 1px solid #dddddd;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 5px;
+}
+
+strong {
+  color: #004188;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #004188;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #f26d21;
+}

@@ -2,19 +2,27 @@
 title: "Analysis of FHIR packages based on the FHIR versions"
 author: "Suhas. P. K"
 date: "`r Sys.Date()`"
-output: 
+output:
   html_document:
-    theme: journal
+    theme:
+      bootswatch: cosmo       # ✅ use Bootswatch "Cosmo" as base theme
     toc: yes
     toc_float:
       collapsed: true
+    css: custom-dark-lite.css
 ---
+
+
+
 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Introduction
+
+## FHIR Package data collection.
 
 ```
 # install.packages(c("rvest", "xml2", "httr2", "jsonlite", "cli"))  # if needed
@@ -195,6 +203,8 @@ cli_alert_success(sprintf("NDJSON lines: %d | JSON array length: %d", ndjson_cou
 if (length(all_rows) > 0) print(utils::head(all_rows, 2))
 
 ```
+
+## Loading the data
 
 ```{r}
 library(jsonlite)
