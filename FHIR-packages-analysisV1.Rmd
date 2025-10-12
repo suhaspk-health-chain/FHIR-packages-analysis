@@ -5,15 +5,14 @@ date: "`r Sys.Date()`"
 output:
   html_document:
     theme:
-      bootswatch: cosmo       # ✅ use Bootswatch "Cosmo" as base theme
+      version: 5
+      bootswatch: cosmo    # ← base theme
     toc: yes
     toc_float:
       collapsed: true
-    css: custom-dark-lite.css
+    css: custom-dark.css
+    self_contained: false   # ← prevents missing .woff2 error
 ---
-
-
-
 
 
 ```{r setup, include=FALSE}
@@ -23,213 +22,140 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Introduction
 
-## FHIR Package data collection.
+The **Fast Healthcare Interoperability Resources (FHIR®)** standard is the foundation for modern health data exchange. With the growing number of implementation guides (IGs), extensions, and reusable data artifacts published across the healthcare ecosystem, understanding how these packages evolve is essential for data quality, interoperability, and analytics readiness.
 
-```
-# install.packages(c("rvest", "xml2", "httr2", "jsonlite", "cli"))  # if needed
-library(rvest)
-library(xml2)
-library(httr2)
-library(jsonlite)
-library(cli)
+This project focuses on **Exploratory Data Analysis (EDA)** of the FHIR Package Index - a comprehensive dataset of published FHIR packages hosted at [packages2.fhir.org/xig](https://packages2.fhir.org/xig).
+Each package in this dataset represents a distinct FHIR resource collection, containing metadata such as version, working group, publication date, and development maturity level (FMM).
 
-base_url     <- "https://packages2.fhir.org/xig"
-ndjson_file  <- "xig_resources.ndjson"
-json_file    <- "xig_resources.json"
-polite_sleep <- 0.3
-max_retries  <- 3
-timeout_sec  <- 30
+## Objectives
 
-`%||%` <- function(a, b) if (is.null(a)) b else a
+The primary goals of this analysis are to:
 
-fetch_doc <- function(url, retries = max_retries, wait = 1) {
-  for (i in seq_len(retries)) {
-    ok <- try({
-      resp <- request(url) |>
-        req_user_agent("HealthChain-XIG-Scraper/1.4 (R rvest) contact: you@example.com") |>
-        req_timeout(timeout_sec) |>
-        req_perform()
-      s <- resp_status(resp)
-      if (s >= 200 && s < 300) {
-        return(read_html(resp_body_string(resp)))
-      } else {
-        cli_alert_warning(sprintf("HTTP %s for %s", s, url))
-      }
-    }, silent = TRUE)
-    Sys.sleep(wait * i)
-  }
-  stop(sprintf("Failed to fetch: %s after %d retries", url, retries))
-}
+- Explore the structure and composition of FHIR packages across different versions.
 
-# --- robust extractor for the big listing table ---
-extract_rows <- function(doc) {
-  # 1) Primary: table identified by column headers
-  tbl <- html_element(
-    doc,
-    xpath = "//table[.//th[normalize-space()='Package'] and .//th[normalize-space()='Identity'] and .//th[normalize-space()='Name/Title']]"
-  )
+- Identify publication trends - including the number of active vs. draft packages and their distribution over time.
 
-  # 2) Fallback: first table after the "Resources - All Kinds" heading
-  if (is.null(tbl)) {
-    hdr <- html_element(doc, xpath = "//*[@id='rendering']//h3[contains(normalize-space(), 'Resources') and contains(normalize-space(), 'All Kinds')] | //h3[contains(normalize-space(), 'Resources') and contains(normalize-space(), 'All Kinds')] | //h2[contains(normalize-space(), 'Resources') and contains(normalize-space(), 'All Kinds')]")
-    if (!is.null(hdr)) {
-      tbl <- html_element(hdr, xpath = "following-sibling::table[1]")
-    }
-  }
-  if (is.null(tbl)) return(list())
+- Assess maturity and adoption patterns using the FHIR Maturity Model (FMM) levels.
 
-  # Grab body rows (skip header)
-  trs <- html_elements(tbl, xpath = ".//tr[td]")
-  if (length(trs) == 0) return(list())
+- Understand working group contributions and how they align with key healthcare domains (clinical, administrative, financial).
 
-  out <- vector("list", length(trs))
-  for (i in seq_along(trs)) {
-    tds  <- html_elements(trs[[i]], "td")
-    text <- vapply(tds, html_text2, "", USE.NAMES = FALSE)
-    text <- c(text, rep("", max(0, 10 - length(text)))) # normalize to 10 cols
+- Visualize the ecosystem to provide actionable insights for interoperability stakeholders, developers, and data scientists.
 
-    # columns: 1 Package (link), 2 Version, 3 Identity (link), 4 Name/Title, 5 Status,
-    # 6 FMM, 7 WG, 8 Date, 9 Realm, 10 Auth
-    pkg_a <- if (length(tds) >= 1) html_element(tds[[1]], "a") else NULL
-    id_a  <- if (length(tds) >= 3) html_element(tds[[3]], "a") else NULL
+---
+## Data Collection
 
-    out[[i]] <- list(
-      package_text   = text[1],
-      package_href   = if (!is.null(pkg_a)) html_attr(pkg_a, "href") else NA_character_,
-      version        = text[2],
-      identity_text  = text[3],
-      identity_href  = if (!is.null(id_a))  html_attr(id_a,  "href") else NA_character_,
-      name_title     = text[4],
-      status         = text[5],
-      fmm            = text[6],
-      wg             = text[7],
-      date           = text[8],
-      realm          = text[9],
-      auth           = text[10]
-    )
-  }
-  out
-}
+The dataset used in this analysis was collected directly from the FHIR Package Index hosted at __packages2.fhir.org/xig__, an official registry maintained by HL7®. This index lists all publicly available **FHIR Implementation Guides (IGs)** and associated resource packages. Each entry in the index includes metadata describing the package name, version, identity, publication status, working group, FHIR maturity level (FMM), release date, realm, and authorship.
 
-# --- find the "Next" page URL ---
-find_next <- function(doc, current_url) {
-  anchors <- html_elements(doc, "a")
-  if (length(anchors) == 0) return(NA_character_)
-  texts <- trimws(html_text2(anchors))
-  hrefs <- html_attr(anchors, "href")
+To build the dataset, an automated [web-scraping script](./fhir_pkg_data_collection.R) was developed in R using the `rvest`, `httr2`, and `jsonlite` libraries. The script iteratively navigates through the paginated web interface (200 entries per page), extracts each package’s metadata, and compiles them into structured JSON and NDJSON formats. This approach ensures that the data is comprehensive and up to date with the latest package releases.
 
-  cand <- which(grepl("^Next\\b", texts, ignore.case = TRUE) & grepl("offset=", hrefs %||% ""))
-  if (length(cand) > 0) return(url_absolute(hrefs[cand[1]], current_url))
+The final dataset contains over **75,000 FHIR package records**, representing various **FHIR versions** and working groups across multiple healthcare domains. These records were then transformed into a dataframe within R for further exploration and visualization. The collection process preserves transparency and reproducibility, making the dataset suitable for large-scale analysis and trend identification within the FHIR ecosystem.
 
-  cand <- which(grepl("^Next\\b", texts, ignore.case = TRUE))
-  if (length(cand) > 0) return(url_absolute(hrefs[cand[1]], current_url))
 
-  u <- httr2::url_parse(current_url)
-  qs <- u$query
-  if (!is.null(qs$offset)) {
-    off <- suppressWarnings(as.integer(qs$offset))
-    if (!is.na(off)) {
-      qs$offset <- as.character(off + 200L)
-      u$query <- qs
-      return(httr2::url_build(u))
-    }
-  }
-  NA_character_
-}
-
-append_ndjson <- function(recs, con) {
-  for (rec in recs) writeLines(toJSON(rec, auto_unbox = TRUE, null = "null"), con)
-}
-
-# --- sanity check first page ---
-cli_h1("XIG Scrape: sanity check (page 1)")
-doc_test  <- fetch_doc(base_url)
-test_rows <- extract_rows(doc_test)
-cli_alert_info(sprintf("Rows on first page: %d (expect ~200)", length(test_rows)))
-
-# --- crawl ---
-cli_h1("Scraping all pages")
-if (file.exists(ndjson_file)) file.remove(ndjson_file)
-
-con <- file(ndjson_file, open = "a", encoding = "UTF-8")
-on.exit(try(close(con), silent = TRUE), add = TRUE)
-
-all_rows <- list()
-total    <- 0L
-page_no  <- 0L
-url <- base_url
-
-repeat {
-  page_no <- page_no + 1L
-  cli_h2(sprintf("Page %d", page_no))
-  doc  <- fetch_doc(url)
-  rows <- extract_rows(doc)
-  n    <- length(rows)
-  cli_alert_success(sprintf("Extracted %d rows", n))
-
-  # 🔴 Terminate immediately if no rows extracted
-  if (n == 0) {
-    cli_alert_warning(sprintf("No rows extracted on page %d. Terminating process and saving data.", page_no))
-    break
-  }
-
-  append_ndjson(rows, con)
-  all_rows <- c(all_rows, rows)
-  total    <- total + n
-
-  next_url <- find_next(doc, url)
-  if (is.na(next_url)) {
-    cli_alert_info(sprintf("No more pages. Total rows: %d", total))
-    break
-  }
-
-  Sys.sleep(polite_sleep)
-  url <- next_url
-}
-
-# ✅ Save whatever data is collected before termination
-close(con)
-
-if (length(all_rows) > 0) {
-  write_json(all_rows, json_file, pretty = TRUE, auto_unbox = TRUE)
-  cli_alert_success(sprintf("Saved partial data: %d rows written to %s", length(all_rows), json_file))
-} else {
-  cli_alert_warning("No data collected — JSON not written.")
-}
-
-# ✅ Final report
-ndjson_count <- if (file.exists(ndjson_file)) length(readLines(ndjson_file)) else 0L
-cli_h1("Done")
-cli_alert_success(sprintf("NDJSON lines: %d | JSON array length: %d", ndjson_count, length(all_rows)))
-if (length(all_rows) > 0) print(utils::head(all_rows, 2))
-
-```
 
 ## Libraries
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+# Data handling & Manipulation
 library(jsonlite)
-library(tidyr)
 library(dplyr)
+library(tidyr)
+library(readr)
+library(stringr)
+library(lubridate)
+
+# Visualization
+library(ggplot2)
+library(ggdark)
+library(scales)
+library(viridis)
+
+# EDA Utilities
+library(skimr)
+library(DataExplorer)
+library(summarytools)
+
+# Table Rendering & Reporting
 library(knitr)
+library(kableExtra)
+library(DT)
 ```
 
-
-```{r}
+# About the Data
+```{r data-summary, warning=FALSE}
 # read full JSON array
 data <- fromJSON("xig_resources.json", flatten = TRUE)
 
 # convert to dataframe
 df <- as.data.frame(data)
 
-# view summary
-kable(
-  str(df),
-  align = "c"
-)
-
+glimpse(df)
 ```
 
+Using `skimr` to understand the data summary in a tabular form
 
+```{r data-summary-table, message=FALSE, warning=FALSE}
+skimmed <- skim(df)
 
+kable(
+  skimmed,
+  format = "html",
+  booktabs = TRUE
+) %>%
+  kable_styling(
+    full_width = FALSE,
+    font_size = 12,
+    bootstrap_options = c("striped", "condensed", "responsive")
+  ) %>%
+  scroll_box(width = "100%", height = "500px")
+```
+
+### Data Summary Highlights
+
+**Total Variables**: 11 (all character type)
+
+**Total Records**: ~75,000 FHIR package entries
+
+### Core Fields
+
+- `package_text` – Fully complete (no missing values); contains 1,096 unique package names.
+
+- `package_href` – About 30% missing (complete_rate = 0.70); 601 unique hyperlinks to package definitions.
+
+- `version` – Consistently present with 5 unique values (likely representing FHIR versions like R2–R5).
+
+- `identity_text` / `identity_href` – Both complete and unique for almost every record (over 70k unique identifiers).
+
+### Descriptive Metadata
+
+- `name_title` – Fully populated, contains descriptive names or titles (up to 261 characters); 66k unique entries.
+
+- `status` – 9 unique values (e.g., active, draft, retired), with full completeness across records.
+
+- `fmm` (FHIR Maturity Model) – Mostly empty (~90% blank); only 7 unique maturity levels recorded.
+
+- `wg` (Working Group) – Sparse data; 30 unique working groups identified, but ~65k empty values.
+
+- `date` – Present for all records, with 193 unique date entries (likely publication dates).
+
+- `realm` – Optional metadata; 39 unique realms (e.g., US, AU, UK), ~22k missing.
+
+- `auth` – Author or organization field, lightly populated (only 5 unique values).
+
+### Overall Data Quality
+
+- Core technical identifiers (`identity_text`, `identity_href`) are strong and unique.
+
+- Descriptive and governance fields (`wg`, `fmm`, `realm`, `auth`) have high sparsity.
+
+- Excellent completeness for essential attributes (`name`, `version`, `status`).
+
+- Text length variability indicates diverse and detailed metadata descriptions.
+
+### Data Quality Assessment
+
+The FHIR package dataset demonstrates a generally strong structural quality, with all **11 variables** consistently defined and fully aligned across nearly 75,000 records. Core technical fields such as `identity_text`, `identity_href`, `package_text`, and `version` show excellent completeness and uniqueness, ensuring reliable identification of each FHIR package. These attributes form the backbone of the dataset and can be confidently used for trend, frequency, and relationship analyses.
+
+However, several descriptive and governance-related attributes - notably `fmm`, `wg`, `realm`, and `auth` - exhibit significant sparsity. The FHIR Maturity Model (`fmm`) field is largely missing, limiting the ability to analyze maturity progression across resources. Similarly, `wg` (Working Group) and realm values are incomplete for many packages, suggesting gaps in metadata publication or inconsistencies in source documentation.
+
+Textual attributes such as `name_title` and `status` are well-populated and diverse, offering good analytical potential for classification and pattern exploration. Overall, while the dataset provides robust coverage for technical and structural aspects, additional enrichment or cross-referencing may be necessary for deeper organizational or maturity-related analyses. This quality profile makes the dataset ideal for exploratory visualization, version distribution analysis, and metadata completeness assessment across the FHIR ecosystem.
 

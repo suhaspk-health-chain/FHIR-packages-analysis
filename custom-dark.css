@@ -1,34 +1,44 @@
+/* =========================================================
+   HEALTH CHAIN BLUE BACKGROUND THEME (Fixed + Unified)
+   Deep navy base | White text | Orange accents
+   ========================================================= */
 
 /* ========== Base Setup ========== */
 body {
-  background-color: #0c223f; /* Deep navy background */
+  background-color: #0c223f; /* Deep navy */
   color: #f5f5f5; /* Soft white text */
   font-family: 'Segoe UI', 'Roboto', sans-serif;
+  line-height: 1.6;
 }
 
 /* ========== Headings ========== */
 h1, h2, h3, h4, h5, h6 {
   color: #ffffff;
   font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 0.6em;
 }
 
 h1 {
-  border-bottom: 2px solid #f26d21; /* Bright orange underline for emphasis */
+  border-bottom: 2px solid #f26d21;
   padding-bottom: 0.3em;
+  text-shadow: 0 0 4px rgba(242, 109, 33, 0.3);
 }
 
 /* ========== Navbar ========== */
 .navbar, .quarto-navbar {
-  background-color: #ffffff; /* Light navbar */
+  background-color: #ffffff;
   border-bottom: 2px solid #f26d21;
 }
 
 .navbar a, .navbar-brand, .quarto-navbar a {
   color: #002c5d !important;
+  font-weight: 500;
 }
 
 .navbar a:hover {
   color: #f26d21 !important;
+  text-shadow: 0 0 4px rgba(242, 109, 33, 0.3);
 }
 
 /* ========== Footer ========== */
@@ -44,11 +54,13 @@ footer, .page-footer {
 a {
   color: #f26d21;
   text-decoration: none;
+  transition: all 0.2s ease;
 }
 
 a:hover {
   color: #ff8c42;
   text-decoration: underline;
+  text-shadow: 0 0 4px rgba(242, 109, 33, 0.3);
 }
 
 /* ========== Buttons ========== */
@@ -56,29 +68,84 @@ a:hover {
   background-color: #f26d21;
   border-color: #f26d21;
   color: #ffffff;
+  transition: all 0.2s ease;
 }
 
 .btn:hover {
   background-color: #ff8c42;
   border-color: #ff8c42;
   color: #ffffff;
+  box-shadow: 0 0 8px rgba(242, 109, 33, 0.4);
 }
 
 /* ========== Code Blocks ========== */
-pre, code {
-  background-color: #011c40;
-  color: #ffeecc;
+/* =========================================================
+   CODE BLOCKS — LIGHT THEME (White background, Blue text)
+   ========================================================= */
+
+/* ---- Block-level code ---- */
+pre {
+  background-color: #ffffff;          /* white background */
+  color: #002c5d;                     /* deep blue text */
   font-family: 'Courier New', monospace;
-  padding: 0.5em;
-  border-radius: 5px;
+  font-size: 15px;
+  padding: 0.8em 1em;
+  border-radius: 6px;
+  border-left: 4px solid #f26d21;     /* orange accent */
+  border: 1px solid #e0e0e0;
+  margin: 1em 0;
+  overflow-x: auto;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
 }
+
+/* prevent nested <code> from inheriting block styles */
+pre code {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ---- Inline code ---- */
+code {
+  background-color: #f9fafc;          /* soft white tint */
+  color: #002c5d;                     /* deep blue text */
+  font-family: 'Courier New', monospace;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  border: 1px solid #d9e2ef;
+  font-size: 0.95em;
+  white-space: pre-wrap;
+  box-shadow: none;
+}
+
+/* Inline code inside text/headings/links */
+p code, li code, h1 code, h2 code, h3 code, a code {
+  background-color: #fff7f3;
+  color: #002c5d;                     /* orange for emphasis */
+  border: 1px solid #ffd4b8;
+  font-weight: 500;
+}
+
+/* ---- Syntax Highlighting ---- */
+.sourceCode span.kw { color: #004188 !important; font-weight: bold; } /* keywords */
+.sourceCode span.fu { color: #f26d21 !important; }                    /* functions */
+.sourceCode span.co { color: #9ca3af !important; font-style: italic; }/* comments */
+.sourceCode span.st { color: #0066cc !important; }                    /* strings */
+.sourceCode span.dv { color: #b03060 !important; }                    /* numbers */
+.sourceCode span.op { color: #002c5d !important; }                    /* operators */
+.sourceCode span.va { color: #002c5d !important; }                    /* variables */
+
 
 /* ========== Tables ========== */
 table {
   width: 100%;
   border-collapse: collapse;
-  background-color: #002c5d;
+  background-color: #0f2f58;
   color: #ffffff;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 th, td {
@@ -88,18 +155,25 @@ th, td {
 }
 
 thead {
-  background-color: #003366;
+  background-color: #123d73;
+  color: #ffffff;
+  border-bottom: 2px solid #f26d21;
+}
+
+table tr:hover {
+  background-color: rgba(242, 109, 33, 0.1);
+  transition: background-color 0.2s ease;
 }
 
 /* ========== Blockquotes ========== */
 blockquote {
   border-left: 4px solid #f26d21;
-  background-color:  #ffffff ;
+  background-color: #ffffff;
   padding: 1em;
-  color:#002b4e; /* 👈 change from #dddddd */
+  color: #002b4e;
   font-style: italic;
+  box-shadow: inset 3px 0 6px rgba(242, 109, 33, 0.2);
 }
-
 
 /* ========== Cards and Panels ========== */
 .card, .panel {
@@ -108,25 +182,38 @@ blockquote {
   border: 1px solid #f26d21;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  padding: 1rem;
 }
 
-/* ========== Quarto Sidebar ========== */
+/* ========== Sidebar (Unified Dark Fix) ========== */
 .sidebar {
-  background-color: #002c5d;
-  color: #ffffff;
+  background-color: #0f1f35 !important;
+  color: #f0f4f8 !important;
+  border-right: 1px solid #1e2f4a;
 }
 
-.sidebar .sidebar-title {
-  color: #f26d21;
+.sidebar .sidebar-title, .sidebar-section-title {
+  color: #f26d21 !important;
   font-weight: bold;
 }
 
 .sidebar a {
-  color: #ffffff;
+  color: #f0f4f8 !important;
+  transition: color 0.2s ease;
 }
 
 .sidebar a:hover {
-  color: #f26d21;
+  color: #f26d21 !important;
+}
+
+.sidebar-item.active > a {
+  background-color: #1e3552 !important;
+  color: #ffffff !important;
+}
+
+.sidebar-toggle {
+  background-color: #1c2f4a !important;
+  color: #f0f4f8 !important;
 }
 
 /* ========== Alerts ========== */
@@ -176,7 +263,7 @@ strong {
   color: #ffffff;
 }
 
-/* Scrollbar */
+/* ========== Scrollbar ========== */
 ::-webkit-scrollbar {
   width: 10px;
 }
@@ -190,49 +277,44 @@ strong {
   background: #ff8c42;
 }
 
-/* Optional: Adjust logo size */
+/* ========== Navbar Logo & Icons ========== */
 .navbar-brand img {
   max-height: 36px;
   margin-right: 10px;
   vertical-align: middle;
 }
 
-/* Navbar social icon */
 .navbar img {
   max-height: 36px;
   padding-left: 8px;
   padding-right: 8px;
 }
 
-/* Navbar social icons hover effect */
 .navbar a img:hover {
   opacity: 0.85;
   transform: scale(1.1);
   transition: all 0.2s ease-in-out;
 }
 
-/* carousel */ 
-/* Carousel wrapper with orange border */
+/* ========== Carousel ========== */
 .carousel-wrapper {
   max-width: 50%;
   margin: 2rem auto;
-  border: 4px solid #ff9800; /* orange border */
+  border: 4px solid #f26d21;
   border-radius: 12px;
   overflow: hidden;
-  position: relative; /* required for arrow alignment */
+  position: relative;
 }
 
-/* Carousel image styling */
 .carousel-inner img {
   width: 100%;
   object-fit: cover;
 }
 
-/* Custom arrow styles */
 .custom-arrow {
   width: 20px;
   height: 20px;
-  background-color: orange;
+  background-color: #f26d21;
   border: none;
   border-radius: 50%;
   top: 50%;
@@ -244,7 +326,6 @@ strong {
   align-items: center;
 }
 
-/* Position arrows on the sides */
 .carousel-control-prev.custom-arrow {
   left: 16px;
 }
@@ -253,46 +334,27 @@ strong {
   right: 16px;
 }
 
-/* Inner arrow icon */
 .custom-arrow .carousel-control-prev-icon,
 .custom-arrow .carousel-control-next-icon {
   background-size: 70% 70%;
   filter: invert(100%);
 }
 
-
-/* ======= Sidebar Dark Theme Fix ======= */
-.sidebar {
-  background-color: #0f1f35 !important; /* Dark blue/navy background */
-  color: #f0f4f8 !important;            /* Light text */
-  border-right: 1px solid #1e2f4a;
+/* =========================================================
+   VISUAL POLISH
+   ========================================================= */
+h1, h2, h3 {
+  text-shadow: 0 0 3px rgba(242, 109, 33, 0.25);
 }
 
-.sidebar a {
-  color: #f0f4f8 !important;
+table tr:hover, blockquote {
+  box-shadow: 0 0 8px rgba(242, 109, 33, 0.2);
 }
 
-.sidebar a:hover {
-  color: #f26d21 !important;  /* Orange on hover */
+.btn:hover, .navbar a:hover, .sidebar a:hover {
+  text-shadow: 0 0 6px rgba(242, 109, 33, 0.3);
 }
 
-.sidebar-item-container {
-  background-color: transparent !important;
-}
-
-.sidebar-title, .sidebar-section-title {
-  color: #f26d21 !important;
-  font-weight: bold;
-}
-
-/* Sidebar toggle button (mobile) */
-.sidebar-toggle {
-  background-color: #1c2f4a !important;
-  color: #f0f4f8 !important;
-}
-
-/* Sidebar active highlight */
-.sidebar-item.active > a {
-  background-color: #1e3552 !important;
-  color: #ffffff !important;
+pre, code {
+  box-shadow: 0 0 8px rgba(242, 109, 33, 0.25);
 }

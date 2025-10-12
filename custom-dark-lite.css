@@ -187,3 +187,68 @@ img{ max-width:100%; height:auto; border-radius:6px; }
 /* ---------- Navbar image sizes ---------- */
 .navbar-brand img{ max-height:36px; margin-right:10px; vertical-align:middle; }
 .navbar img{ max-height:28px; padding:0 8px; }
+
+/* =========================================================
+   FIXES to beat Bootswatch (Cosmo) overrides
+   Place at end so they win the cascade
+   ========================================================= */
+
+/* Stronger selectors for code blocks */
+html body div.sourceCode,
+html body pre.sourceCode,
+html body pre > code.sourceCode{
+  background-color:#1a2e4a !important;
+  color:#e8f0ff !important;
+  border:1px solid #324a6b !important;
+  border-radius:8px !important;
+}
+
+/* Ensure inline code stays readable */
+html body p code:not(.sourceCode),
+html body li code:not(.sourceCode),
+html body td code:not(.sourceCode),
+html body th code:not(.sourceCode){
+  background-color:#233a60 !important;
+  color:#ffddb0 !important;
+  padding:.2em .4em !important;
+  border-radius:4px !important;
+  font-weight:500 !important;
+}
+
+/* Distinguish console/output from input */
+html body pre.output,
+html body pre.console,
+html body pre.r-output{
+  background-color:#142945 !important;
+  color:#dce6f5 !important;
+  border-left:4px solid var(--accent-main) !important;
+  border:1px solid #324a6b !important;
+  border-radius:8px !important;
+}
+
+/* Stop Cosmo from adding light backgrounds to code */
+html body code,
+html body pre,
+html body kbd,
+html body samp{
+  background-image:none !important;
+  box-shadow:none !important;
+}
+
+/* Consistent spacing & scrolling for code areas */
+html body pre.sourceCode,
+html body pre.output,
+html body pre.console{
+  padding:.85em 1em !important;
+  font-size:15px !important;
+  line-height:1.5 !important;
+  overflow-x:auto !important;
+}
+
+/* Dark-mode friendly captions (kable/figures) */
+caption, .table-caption{
+  color:#ffffff !important;
+  font-weight:600 !important;
+  text-align:center !important;
+  margin-bottom:.5em !important;
+}
