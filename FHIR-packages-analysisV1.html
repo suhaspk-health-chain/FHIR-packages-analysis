@@ -11,7 +11,7 @@
 
 <meta name="author" content="Suhas. P. K" />
 
-<meta name="date" content="2025-10-08" />
+<meta name="date" content="2025-10-12" />
 
 <title>Analysis of FHIR packages based on the FHIR versions</title>
 
@@ -1494,20 +1494,269 @@ border-radius: 0px;
 <h1 class="title toc-ignore">Analysis of FHIR packages based on the FHIR
 versions</h1>
 <h4 class="author">Suhas. P. K</h4>
-<h4 class="date">2025-10-08</h4>
+<h4 class="date">2025-10-12</h4>
 
 </div>
 
 
-<div id="heading-1" class="section level1">
-<h1>Heading 1</h1>
-</div>
-<div id="heading-2" class="section level1">
-<h1>Heading 2</h1>
-</div>
-<div id="heading-3" class="section level1">
-<h1>Heading 3</h1>
-</div>
+<pre><code># install.packages(c(&quot;rvest&quot;, &quot;xml2&quot;, &quot;httr2&quot;, &quot;jsonlite&quot;, &quot;cli&quot;))  # if needed
+library(rvest)
+library(xml2)
+library(httr2)
+library(jsonlite)
+library(cli)
+
+base_url     &lt;- &quot;https://packages2.fhir.org/xig&quot;
+ndjson_file  &lt;- &quot;xig_resources.ndjson&quot;
+json_file    &lt;- &quot;xig_resources.json&quot;
+polite_sleep &lt;- 0.3
+max_retries  &lt;- 3
+timeout_sec  &lt;- 30
+
+`%||%` &lt;- function(a, b) if (is.null(a)) b else a
+
+fetch_doc &lt;- function(url, retries = max_retries, wait = 1) {
+  for (i in seq_len(retries)) {
+    ok &lt;- try({
+      resp &lt;- request(url) |&gt;
+        req_user_agent(&quot;HealthChain-XIG-Scraper/1.4 (R rvest) contact: you@example.com&quot;) |&gt;
+        req_timeout(timeout_sec) |&gt;
+        req_perform()
+      s &lt;- resp_status(resp)
+      if (s &gt;= 200 &amp;&amp; s &lt; 300) {
+        return(read_html(resp_body_string(resp)))
+      } else {
+        cli_alert_warning(sprintf(&quot;HTTP %s for %s&quot;, s, url))
+      }
+    }, silent = TRUE)
+    Sys.sleep(wait * i)
+  }
+  stop(sprintf(&quot;Failed to fetch: %s after %d retries&quot;, url, retries))
+}
+
+# --- robust extractor for the big listing table ---
+extract_rows &lt;- function(doc) {
+  # 1) Primary: table identified by column headers
+  tbl &lt;- html_element(
+    doc,
+    xpath = &quot;//table[.//th[normalize-space()=&#39;Package&#39;] and .//th[normalize-space()=&#39;Identity&#39;] and .//th[normalize-space()=&#39;Name/Title&#39;]]&quot;
+  )
+
+  # 2) Fallback: first table after the &quot;Resources - All Kinds&quot; heading
+  if (is.null(tbl)) {
+    hdr &lt;- html_element(doc, xpath = &quot;//*[@id=&#39;rendering&#39;]//h3[contains(normalize-space(), &#39;Resources&#39;) and contains(normalize-space(), &#39;All Kinds&#39;)] | //h3[contains(normalize-space(), &#39;Resources&#39;) and contains(normalize-space(), &#39;All Kinds&#39;)] | //h2[contains(normalize-space(), &#39;Resources&#39;) and contains(normalize-space(), &#39;All Kinds&#39;)]&quot;)
+    if (!is.null(hdr)) {
+      tbl &lt;- html_element(hdr, xpath = &quot;following-sibling::table[1]&quot;)
+    }
+  }
+  if (is.null(tbl)) return(list())
+
+  # Grab body rows (skip header)
+  trs &lt;- html_elements(tbl, xpath = &quot;.//tr[td]&quot;)
+  if (length(trs) == 0) return(list())
+
+  out &lt;- vector(&quot;list&quot;, length(trs))
+  for (i in seq_along(trs)) {
+    tds  &lt;- html_elements(trs[[i]], &quot;td&quot;)
+    text &lt;- vapply(tds, html_text2, &quot;&quot;, USE.NAMES = FALSE)
+    text &lt;- c(text, rep(&quot;&quot;, max(0, 10 - length(text)))) # normalize to 10 cols
+
+    # columns: 1 Package (link), 2 Version, 3 Identity (link), 4 Name/Title, 5 Status,
+    # 6 FMM, 7 WG, 8 Date, 9 Realm, 10 Auth
+    pkg_a &lt;- if (length(tds) &gt;= 1) html_element(tds[[1]], &quot;a&quot;) else NULL
+    id_a  &lt;- if (length(tds) &gt;= 3) html_element(tds[[3]], &quot;a&quot;) else NULL
+
+    out[[i]] &lt;- list(
+      package_text   = text[1],
+      package_href   = if (!is.null(pkg_a)) html_attr(pkg_a, &quot;href&quot;) else NA_character_,
+      version        = text[2],
+      identity_text  = text[3],
+      identity_href  = if (!is.null(id_a))  html_attr(id_a,  &quot;href&quot;) else NA_character_,
+      name_title     = text[4],
+      status         = text[5],
+      fmm            = text[6],
+      wg             = text[7],
+      date           = text[8],
+      realm          = text[9],
+      auth           = text[10]
+    )
+  }
+  out
+}
+
+# --- find the &quot;Next&quot; page URL ---
+find_next &lt;- function(doc, current_url) {
+  anchors &lt;- html_elements(doc, &quot;a&quot;)
+  if (length(anchors) == 0) return(NA_character_)
+  texts &lt;- trimws(html_text2(anchors))
+  hrefs &lt;- html_attr(anchors, &quot;href&quot;)
+
+  cand &lt;- which(grepl(&quot;^Next\\b&quot;, texts, ignore.case = TRUE) &amp; grepl(&quot;offset=&quot;, hrefs %||% &quot;&quot;))
+  if (length(cand) &gt; 0) return(url_absolute(hrefs[cand[1]], current_url))
+
+  cand &lt;- which(grepl(&quot;^Next\\b&quot;, texts, ignore.case = TRUE))
+  if (length(cand) &gt; 0) return(url_absolute(hrefs[cand[1]], current_url))
+
+  u &lt;- httr2::url_parse(current_url)
+  qs &lt;- u$query
+  if (!is.null(qs$offset)) {
+    off &lt;- suppressWarnings(as.integer(qs$offset))
+    if (!is.na(off)) {
+      qs$offset &lt;- as.character(off + 200L)
+      u$query &lt;- qs
+      return(httr2::url_build(u))
+    }
+  }
+  NA_character_
+}
+
+append_ndjson &lt;- function(recs, con) {
+  for (rec in recs) writeLines(toJSON(rec, auto_unbox = TRUE, null = &quot;null&quot;), con)
+}
+
+# --- sanity check first page ---
+cli_h1(&quot;XIG Scrape: sanity check (page 1)&quot;)
+doc_test  &lt;- fetch_doc(base_url)
+test_rows &lt;- extract_rows(doc_test)
+cli_alert_info(sprintf(&quot;Rows on first page: %d (expect ~200)&quot;, length(test_rows)))
+
+# --- crawl ---
+cli_h1(&quot;Scraping all pages&quot;)
+if (file.exists(ndjson_file)) file.remove(ndjson_file)
+
+con &lt;- file(ndjson_file, open = &quot;a&quot;, encoding = &quot;UTF-8&quot;)
+on.exit(try(close(con), silent = TRUE), add = TRUE)
+
+all_rows &lt;- list()
+total    &lt;- 0L
+page_no  &lt;- 0L
+url &lt;- base_url
+
+repeat {
+  page_no &lt;- page_no + 1L
+  cli_h2(sprintf(&quot;Page %d&quot;, page_no))
+  doc  &lt;- fetch_doc(url)
+  rows &lt;- extract_rows(doc)
+  n    &lt;- length(rows)
+  cli_alert_success(sprintf(&quot;Extracted %d rows&quot;, n))
+
+  # 🔴 Terminate immediately if no rows extracted
+  if (n == 0) {
+    cli_alert_warning(sprintf(&quot;No rows extracted on page %d. Terminating process and saving data.&quot;, page_no))
+    break
+  }
+
+  append_ndjson(rows, con)
+  all_rows &lt;- c(all_rows, rows)
+  total    &lt;- total + n
+
+  next_url &lt;- find_next(doc, url)
+  if (is.na(next_url)) {
+    cli_alert_info(sprintf(&quot;No more pages. Total rows: %d&quot;, total))
+    break
+  }
+
+  Sys.sleep(polite_sleep)
+  url &lt;- next_url
+}
+
+# ✅ Save whatever data is collected before termination
+close(con)
+
+if (length(all_rows) &gt; 0) {
+  write_json(all_rows, json_file, pretty = TRUE, auto_unbox = TRUE)
+  cli_alert_success(sprintf(&quot;Saved partial data: %d rows written to %s&quot;, length(all_rows), json_file))
+} else {
+  cli_alert_warning(&quot;No data collected — JSON not written.&quot;)
+}
+
+# ✅ Final report
+ndjson_count &lt;- if (file.exists(ndjson_file)) length(readLines(ndjson_file)) else 0L
+cli_h1(&quot;Done&quot;)
+cli_alert_success(sprintf(&quot;NDJSON lines: %d | JSON array length: %d&quot;, ndjson_count, length(all_rows)))
+if (length(all_rows) &gt; 0) print(utils::head(all_rows, 2))
+</code></pre>
+<pre class="r"><code>library(jsonlite)</code></pre>
+<pre><code>## Warning: package &#39;jsonlite&#39; was built under R version 4.5.1</code></pre>
+<pre class="r"><code># read full JSON array
+data &lt;- fromJSON(&quot;xig_resources.json&quot;, flatten = TRUE)
+
+# convert to dataframe
+df &lt;- as.data.frame(data)
+
+# view summary
+cat(&quot;Rows:&quot;, nrow(df), &quot; | Columns:&quot;, ncol(df), &quot;\n&quot;)</code></pre>
+<pre><code>## Rows: 75411  | Columns: 12</code></pre>
+<pre class="r"><code>str(df)</code></pre>
+<pre><code>## &#39;data.frame&#39;:    75411 obs. of  12 variables:
+##  $ package_text : chr  &quot;hl7.fhir.uv.vulcan-schedule&quot; &quot;smart.who.int.base&quot; &quot;hl7.fhir.uv.pharm-quality&quot; &quot;hl7.fhir.uv.pharm-quality&quot; ...
+##  $ package_href : chr  &quot;https://build.fhir.org/ig/HL7/Vulcan-schedule-ig/&quot; &quot;https://build.fhir.org/ig/WorldHealthOrganization/smart-base/&quot; &quot;https://build.fhir.org/ig/HL7/uv-dx-pq/&quot; &quot;https://build.fhir.org/ig/HL7/uv-dx-pq/&quot; ...
+##  $ version      : chr  &quot;R4&quot; &quot;R4&quot; &quot;R5&quot; &quot;R5&quot; ...
+##  $ identity_text: chr  &quot;ActivityDefinition/H2Q-MC-LZZT-Vital-Signs-Temperature&quot; &quot;ActivityDefinition/SGDecisionTableGuidance&quot; &quot;ActivityDefinition/LyophilizationAct&quot; &quot;ActivityDefinition/activitydefinition-test-drug-pq-ex1&quot; ...
+##  $ identity_href: chr  &quot;/xig/resource/hl7.fhir.uv.vulcan-soa%7Ccurrent/ActivityDefinition/H2Q-MC-LZZT-Vital-Signs-Temperature&quot; &quot;/xig/resource/smart.who.int.base%7Ccurrent/ActivityDefinition/SGDecisionTableGuidance&quot; &quot;/xig/resource/hl7.fhir.uv.pharm-quality%7Ccurrent/ActivityDefinition/LyophilizationAct&quot; &quot;/xig/resource/hl7.fhir.uv.pharm-quality%7Ccurrent/ActivityDefinition/activitydefinition-test-drug-pq-ex1&quot; ...
+##  $ name_title   : chr  &quot;Vital Signs - Temperature&quot; &quot;SGDecisionTableGuidance&quot; &quot;Lyophilization&quot; &quot;Example of ActivityDefinition - Test for test set: Long-term - 25°C/60% RH - XYZ.&quot; ...
+##  $ status       : chr  &quot;active&quot; &quot;draft&quot; &quot;active&quot; &quot;active&quot; ...
+##  $ fmm          : chr  &quot;&quot; &quot;&quot; &quot;&quot; &quot;&quot; ...
+##  $ wg           : chr  &quot;&quot; &quot;&quot; &quot;&quot; &quot;&quot; ...
+##  $ date         : chr  &quot;2023-04&quot; &quot;2025-06&quot; &quot;2024-05&quot; &quot;2024-05&quot; ...
+##  $ realm        : chr  &quot;uv&quot; &quot;&quot; &quot;uv&quot; &quot;uv&quot; ...
+##  $ auth         : chr  &quot;hl7&quot; &quot;who&quot; &quot;hl7&quot; &quot;hl7&quot; ...</code></pre>
+<pre class="r"><code>head(df)</code></pre>
+<pre><code>##                  package_text
+## 1 hl7.fhir.uv.vulcan-schedule
+## 2          smart.who.int.base
+## 3   hl7.fhir.uv.pharm-quality
+## 4   hl7.fhir.uv.pharm-quality
+## 5           hl7.fhir.pl.ssidl
+## 6           hl7.fhir.pl.ssidl
+##                                                    package_href version
+## 1             https://build.fhir.org/ig/HL7/Vulcan-schedule-ig/      R4
+## 2 https://build.fhir.org/ig/WorldHealthOrganization/smart-base/      R4
+## 3                       https://build.fhir.org/ig/HL7/uv-dx-pq/      R5
+## 4                       https://build.fhir.org/ig/HL7/uv-dx-pq/      R5
+## 5                     https://build.fhir.org/ig/SSIDL/ssidl-ig/      R5
+## 6                     https://build.fhir.org/ig/SSIDL/ssidl-ig/      R5
+##                                            identity_text
+## 1 ActivityDefinition/H2Q-MC-LZZT-Vital-Signs-Temperature
+## 2             ActivityDefinition/SGDecisionTableGuidance
+## 3                   ActivityDefinition/LyophilizationAct
+## 4 ActivityDefinition/activitydefinition-test-drug-pq-ex1
+## 5      ActivityDefinition/SsidlLabCatalogService-58410-2
+## 6       ActivityDefinition/SsidlLabCatalogService-6690-2
+##                                                                                              identity_href
+## 1    /xig/resource/hl7.fhir.uv.vulcan-soa%7Ccurrent/ActivityDefinition/H2Q-MC-LZZT-Vital-Signs-Temperature
+## 2                    /xig/resource/smart.who.int.base%7Ccurrent/ActivityDefinition/SGDecisionTableGuidance
+## 3                   /xig/resource/hl7.fhir.uv.pharm-quality%7Ccurrent/ActivityDefinition/LyophilizationAct
+## 4 /xig/resource/hl7.fhir.uv.pharm-quality%7Ccurrent/ActivityDefinition/activitydefinition-test-drug-pq-ex1
+## 5              /xig/resource/hl7.fhir.pl.ssidl%7Ccurrent/ActivityDefinition/SsidlLabCatalogService-58410-2
+## 6               /xig/resource/hl7.fhir.pl.ssidl%7Ccurrent/ActivityDefinition/SsidlLabCatalogService-6690-2
+##                                                                          name_title
+## 1                                                         Vital Signs - Temperature
+## 2                                                           SGDecisionTableGuidance
+## 3                                                                    Lyophilization
+## 4 Example of ActivityDefinition - Test for test set: Long-term - 25°C/60% RH - XYZ.
+## 5                                                     Morfologia krwi 8-parametrowa
+## 6                                                                         Leukocyty
+##   status fmm wg    date realm auth
+## 1 active        2023-04    uv  hl7
+## 2  draft        2025-06        who
+## 3 active        2024-05    uv  hl7
+## 4 active        2024-05    uv  hl7
+## 5 active        2025-08    pl  hl7
+## 6 active        2025-08    pl  hl7</code></pre>
+<pre class="r"><code>summary(df)</code></pre>
+<pre><code>##  package_text       package_href         version          identity_text     
+##  Length:75411       Length:75411       Length:75411       Length:75411      
+##  Class :character   Class :character   Class :character   Class :character  
+##  Mode  :character   Mode  :character   Mode  :character   Mode  :character  
+##  identity_href       name_title           status              fmm           
+##  Length:75411       Length:75411       Length:75411       Length:75411      
+##  Class :character   Class :character   Class :character   Class :character  
+##  Mode  :character   Mode  :character   Mode  :character   Mode  :character  
+##       wg                date              realm               auth          
+##  Length:75411       Length:75411       Length:75411       Length:75411      
+##  Class :character   Class :character   Class :character   Class :character  
+##  Mode  :character   Mode  :character   Mode  :character   Mode  :character</code></pre>
 
 
 
