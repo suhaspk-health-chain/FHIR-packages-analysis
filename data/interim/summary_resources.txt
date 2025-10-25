@@ -1,0 +1,4 @@
+List of 3
+ $ n_rows          : int 75411
+ $ n_packages      : int 1096
+ $ n_resource_types: int 23
