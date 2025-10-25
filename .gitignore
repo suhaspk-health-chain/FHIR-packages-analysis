@@ -52,7 +52,7 @@ rsconnect/
 data/interim/
 data/processed/
 outputs/tables/
-outputs/reports/
+
 !figs/README.md  # (keep placeholder if desired)
 
 # ---- Raw data (optional, uncomment if sensitive) ----
