@@ -1,0 +1,62 @@
+project:
+  type: website
+
+website:
+  title: "FHIR packages EDA Report"
+  open-graph: true
+
+  announcement: 
+    icon: info-circle
+    dismissable: true
+    content: "**Alert** - this is some information that you should pay attention to"
+    type: info
+    position: below-navbar
+
+  image: images/health-chain-logo.png
+
+  navbar:
+    pinned: true
+    logo: images/health-chain-full-logo.png
+    left:
+      - href: index.qmd
+        text: Home
+    right:  # ✅ This MUST be inside `navbar`
+      - href: https://www.linkedin.com/company/health-chain-io
+        text: "<img src='/images/linkedin-icon.png' alt='LinkedIn' style='height:32px; vertical-align:middle; margin-top:-4px;' />"
+        aria-label: LinkedIn
+        target: _blank
+
+      - href: https://health-chain.io/#
+        text: "<img src='/images/youtube-icon.png' alt='YouTube' style='height:32px; vertical-align:middle; margin-top:-4px;' />"
+        aria-label: YouTube
+        target: _blank
+
+      - href: https://twitter.com/healthchain_io
+        text: "<img src='/images/twitter-x-icon.png' alt='Twitter X' style='height:32px; vertical-align:middle; margin-top:-4px;' />"
+        aria-label: Twitter
+        target: _blank
+
+  sidebar:
+    style: "docked"
+    collapse-level: 6
+    type: dark
+    contents: 
+      - text: "Table of contents"
+      - section: "Sections"
+        contents: 
+          - text: "Data Extraction"
+            href: sections/extraction.qmd
+          - text: "Data cleaning & processing"
+            href: sections/cleaning&processing.qmd
+  cookie-consent:
+    type: express
+    pinned: true
+    style: simple
+    palette: light
+
+format:
+  html:
+    theme: cosmos
+    css:
+      - styles/custom-dark.css
+    toc: true

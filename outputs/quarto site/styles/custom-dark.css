@@ -78,65 +78,6 @@ a:hover {
   box-shadow: 0 0 8px rgba(242, 109, 33, 0.4);
 }
 
-/* ========== Code Blocks ========== */
-/* =========================================================
-   CODE BLOCKS — LIGHT THEME (White background, Blue text)
-   ========================================================= */
-
-/* ---- Block-level code ---- */
-pre {
-  background-color: #ffffff;          /* white background */
-  color: #002c5d;                     /* deep blue text */
-  font-family: 'Courier New', monospace;
-  font-size: 15px;
-  padding: 0.8em 1em;
-  border-radius: 6px;
-  border-left: 4px solid #f26d21;     /* orange accent */
-  border: 1px solid #e0e0e0;
-  margin: 1em 0;
-  overflow-x: auto;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
-}
-
-/* prevent nested <code> from inheriting block styles */
-pre code {
-  background: transparent !important;
-  color: inherit !important;
-  padding: 0 !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-
-/* ---- Inline code ---- */
-code {
-  background-color: #f9fafc;          /* soft white tint */
-  color: #002c5d;                     /* deep blue text */
-  font-family: 'Courier New', monospace;
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
-  border: 1px solid #d9e2ef;
-  font-size: 0.95em;
-  white-space: pre-wrap;
-  box-shadow: none;
-}
-
-/* Inline code inside text/headings/links */
-p code, li code, h1 code, h2 code, h3 code, a code {
-  background-color: #fff7f3;
-  color: #002c5d;                     /* orange for emphasis */
-  border: 1px solid #ffd4b8;
-  font-weight: 500;
-}
-
-/* ---- Syntax Highlighting ---- */
-.sourceCode span.kw { color: #004188 !important; font-weight: bold; } /* keywords */
-.sourceCode span.fu { color: #f26d21 !important; }                    /* functions */
-.sourceCode span.co { color: #9ca3af !important; font-style: italic; }/* comments */
-.sourceCode span.st { color: #0066cc !important; }                    /* strings */
-.sourceCode span.dv { color: #b03060 !important; }                    /* numbers */
-.sourceCode span.op { color: #002c5d !important; }                    /* operators */
-.sourceCode span.va { color: #002c5d !important; }                    /* variables */
-
 
 /* ========== Tables ========== */
 table {
@@ -358,3 +299,120 @@ table tr:hover, blockquote {
 pre, code {
   box-shadow: 0 0 8px rgba(242, 109, 33, 0.25);
 }
+
+/* =========================================================
+   CODE BLOCKS — FIXED DARK MODE VISIBILITY + SYNTAX COLORS
+   ========================================================= */
+
+/* ---- Block-level code ---- */
+pre {
+  background-color: #0f1f2e;        /* dark navy background */
+  color: #e6edf3;                   /* light text */
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 15px;
+  padding: 0.8em 1em;
+  border-radius: 6px;
+  border-left: 4px solid #f26d21;   /* orange accent */
+  margin: 1em 0;
+  overflow-x: auto;
+  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+}
+
+/* Nested code inside pre */
+pre code {
+  background: transparent !important;
+  color: inherit !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ---- Inline code ---- */
+code {
+  background-color: #162b48;
+  color: #f5f5f5;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  border: 1px solid #27466e;
+  font-size: 0.95em;
+  white-space: pre-wrap;
+}
+
+/* Inline code inside paragraphs/headings */
+p code, li code, h1 code, h2 code, h3 code {
+  background-color: #1b3357;
+  color: #ffb780;                   /* soft orange */
+  border: 1px solid #f26d21;
+}
+
+/* ---- Syntax highlighting ---- */
+.sourceCode {
+  background-color: #0f1f2e !important;
+  color: #e6edf3 !important;
+}
+
+/* --- Token colors --- */
+.sourceCode span.kw { color: #ffb780 !important; font-weight: 600; } /* keywords */
+.sourceCode span.fu { color: #5ccfe6 !important; }                    /* functions */
+.sourceCode span.co { color: #9ca3af !important; font-style: italic; }/* comments */
+.sourceCode span.st { color: #a6e22e !important; }                    /* strings */
+.sourceCode span.dv { color: #ff79c6 !important; }                    /* numbers */
+.sourceCode span.op { color: #f5f5f5 !important; }                    /* operators */
+.sourceCode span.cf { color: #f26d21 !important; font-weight: bold; } /* control flow */
+.sourceCode span.bo { color: #50fa7b !important; }                    /* boolean */
+.sourceCode span.cn { color: #bd93f9 !important; }                    /* constants */
+
+/* --- Force variable identifiers to golden (high specificity) --- */
+pre.sourceCode code span.va,
+div.sourceCode code span.va,
+pre code span.va,
+code span.va,
+pre.sourceCode code span.ot,
+div.sourceCode code span.ot,
+pre code span.ot,
+code span.ot {
+  color: #ffd24a !important;        /* warm golden */
+  font-weight: 600;
+}
+
+/* --- Fallback: color bare identifiers (non-keyword tokens) --- */
+pre.sourceCode code span:not(.kw):not(.fu):not(.co):not(.st):not(.dv):not(.op):not(.cn):not(.cf):not(.bo) {
+  color: #ffd24a !important;        /* golden fallback */
+  font-weight: 600;
+}
+
+/* ---- Subtle contrast & polish ---- */
+pre.sourceCode {
+  box-shadow: inset 0 0 8px rgba(0,0,0,0.4);
+}
+
+/* =========================================================
+   IMAGE ALIGNMENT & CAPTIONS
+   ========================================================= */
+
+/* Center block images */
+img,
+.figure img,
+.quarto-figure img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 6px;
+  max-width: 90%;              /* keep within content */
+  height: auto;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(242, 109, 33, 0.3); /* subtle orange tint */
+}
+
+/* Center figure captions */
+.figure-caption,
+.quarto-figure-caption,
+figcaption {
+  text-align: center;
+  font-style: italic;
+  color: #f5f5f5;               /* light text for dark bg */
+  font-size: 0.95em;
+  margin-top: 0.4em;
+}
+
