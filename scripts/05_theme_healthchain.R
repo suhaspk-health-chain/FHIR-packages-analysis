@@ -16,11 +16,13 @@ HC_SCRIPT_DIR <- tryCatch({
 
 HC_LOGO_PATH <- file.path(HC_SCRIPT_DIR, "assets", "health-chain-full-logo.png")
 
-# --- Default Config for Logo Placement (TOP-LEFT with comfy padding) ---
-HC_LOGO_POSITION  <- "top-left"  # "top-left", "top-right", "bottom-left", "bottom-right"
-HC_LOGO_SCALE     <- 0.15        # relative width of full canvas (kept modest for consistency)
-HC_LOGO_X_OFFSET  <- 0.05        # extra left padding (canvas units)
-HC_LOGO_Y_OFFSET  <- 0.05        # extra top padding  (canvas units)
+# --- Default Config for Logo Placement ---
+# --- Default Config for Logo Placement ---
+HC_LOGO_POSITION  <- "top-left"
+HC_LOGO_SCALE     <- 0.096       # ✅ Reduced from 0.12 to 0.096 (20% smaller)
+HC_LOGO_X_NUDGE   <- 0.02
+HC_LOGO_Y_NUDGE   <- 0.02
+
 
 # --- Define Health Chain Theme (light background palette) ---
 theme_healthchain <- function(base_size = 14) {
@@ -35,43 +37,74 @@ theme_healthchain <- function(base_size = 14) {
       legend.text       = element_text(color = "#f26d21"),
       legend.title      = element_text(color = "#0c223f", face = "bold"),
       strip.background  = element_rect(fill = "#123358", color = NA),
-      strip.text        = element_text(color = "#0c223f", face = "bold"),
+      strip.text        = element_text(color = "#ffffff", face = "bold"),
       panel.grid.major  = element_line(color = "#1d3557", linewidth = 0.3),
       panel.grid.minor  = element_blank(),
-      # Extra top/left margin so the logo never feels cramped
       plot.margin       = margin(t = 28, r = 18, b = 16, l = 28)
     )
 }
 theme_set(theme_healthchain())
 
-# --- Helper: Add logo to any ggplot ---
+# --- Helper: Add logo INSIDE plot panel area ---
 add_logo <- function(plot,
                      logo_path = HC_LOGO_PATH,
                      position  = HC_LOGO_POSITION,
                      logo_scale = HC_LOGO_SCALE,
-                     x_offset   = HC_LOGO_X_OFFSET,
-                     y_offset   = HC_LOGO_Y_OFFSET) {
+                     x_nudge    = HC_LOGO_X_NUDGE,
+                     y_nudge    = HC_LOGO_Y_NUDGE) {
+  if (!file.exists(logo_path)) {
+    warning(paste("⚠️ Health Chain logo not found at:", logo_path))
+    return(plot)
+  }
+  
+  # Add annotation layer with logo
+  plot +
+    annotation_custom(
+      grob = grid::rasterGrob(
+        magick::image_read(logo_path),
+        interpolate = TRUE
+      ),
+      xmin = -Inf, xmax = Inf,  # Will be adjusted based on position
+      ymin = -Inf, ymax = Inf   # Will be adjusted based on position
+    ) +
+    coord_cartesian(clip = "off")  # Allow drawing outside strict plot bounds
+}
+
+# --- Alternative: Use cowplot with plot-relative coordinates ---
+add_logo_cowplot <- function(plot,
+                             logo_path = HC_LOGO_PATH,
+                             position  = HC_LOGO_POSITION,
+                             logo_scale = HC_LOGO_SCALE,
+                             x_nudge    = HC_LOGO_X_NUDGE,
+                             y_nudge    = HC_LOGO_Y_NUDGE) {
   if (!file.exists(logo_path)) {
     warning(paste("⚠️ Health Chain logo not found at:", logo_path))
     return(plot)
   }
   
   logo <- magick::image_read(logo_path)
-  pos <- match.arg(position, c("top-right", "top-left", "bottom-right", "bottom-left"))
-  anchors <- list(
-    "top-right"    = list(x = 1 - x_offset, y = 1 - y_offset, hjust = 1, vjust = 1),
-    "top-left"     = list(x = 0 + x_offset, y = 1 - y_offset, hjust = 0, vjust = 1),
-    "bottom-right" = list(x = 1 - x_offset, y = 0 + y_offset, hjust = 1, vjust = 0),
-    "bottom-left"  = list(x = 0 + x_offset, y = 0 + y_offset, hjust = 0, vjust = 0)
-  )
-  a <- anchors[[pos]]
   
-  ggdraw(plot) +
-    draw_image(
+  # Position anchors - using plot-relative coordinates
+  anchors <- list(
+    "top-left"     = list(x = 0.01, y = 0.99, hjust = 0, vjust = 1),
+    "top-right"    = list(x = 0.99, y = 0.99, hjust = 1, vjust = 1),
+    "bottom-left"  = list(x = 0.01, y = 0.01, hjust = 0, vjust = 0),
+    "bottom-right" = list(x = 0.99, y = 0.01, hjust = 1, vjust = 0)
+  )
+  
+  a <- anchors[[position]]
+  
+  # Use ggdraw with plot.margin to position logo in plot area
+  cowplot::ggdraw(plot) +
+    cowplot::draw_image(
       logo,
-      x = a$x, y = a$y,
-      hjust = a$hjust, vjust = a$vjust,
-      width = logo_scale
+      x = a$x + x_nudge, 
+      y = a$y - y_nudge,
+      hjust = a$hjust, 
+      vjust = a$vjust,
+      width = logo_scale,
+      halign = 0,  # Left align
+      valign = 1   # Top align
     )
 }
 
@@ -81,13 +114,13 @@ add_logo <- function(plot,
 # --- Define wrapper that adds logo, then calls original ggsave ---
 ggsave_healthchain <- function(filename, plot = last_plot(), ...) {
   branded_plot <- tryCatch(
-    add_logo(plot),
+    add_logo_cowplot(plot),  # Use the cowplot version
     error = function(e) {
       warning("⚠️ Failed to add logo: ", conditionMessage(e))
       plot
     }
   )
-  .original_ggsave(filename, branded_plot, ..., bg = "transparent")
+  .original_ggsave(filename, branded_plot, ..., bg = "white")
 }
 
 # --- Override global ggsave only after defining safe wrapper ---

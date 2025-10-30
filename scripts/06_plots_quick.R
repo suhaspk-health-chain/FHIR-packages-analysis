@@ -92,8 +92,8 @@ ggsave(
   file.path(FIG_DIR, "top_resource_types_by_version.png"),
   p3,
   width = 16,
-  height = 10,
-  dpi = 250
+  height = 12,
+  dpi = 200
 )
 
 # --- 4️⃣ Summary Log ---

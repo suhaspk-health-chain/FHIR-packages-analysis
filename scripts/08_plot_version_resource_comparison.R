@@ -125,7 +125,7 @@ p_counts <- ggplot(summary_counts,
                    aes(x = factor(version, levels = c("R2","R3","R4","R4B","R5","R6")),
                        y = n_resources, fill = version)) +
   geom_col(show.legend = FALSE) +
-  geom_text(aes(label = n_resources), vjust = -0.3, color = "white", size = 4) +
+  geom_text(aes(label = n_resources), vjust = -0.3, color = "#0c223f", size = 4) +
   labs(title = "FHIR Resources by Version (Official Spec)",
        x = "FHIR Version", y = "Number of Resources")
 p_counts <- apply_theme(p_counts, base_size = 14)
@@ -189,7 +189,7 @@ delta_counts <- diffs %>%
 
 p_added <- ggplot(delta_counts, aes(x = transition, y = added, fill = transition)) +
   geom_col(show.legend = FALSE) +
-  geom_text(aes(label = added), vjust = -0.3, color = "white", size = 4) +
+  geom_text(aes(label = added), vjust = -0.3, color = "#0c223f", size = 4) +
   labs(title = "Resources Added at Each Version Transition",
        x = "Transition (previous → current)", y = "Count Added")
 p_added <- apply_theme(p_added, base_size = 14)
@@ -197,7 +197,7 @@ ggsave(file.path(FIG_DIR, "ver_resources_added.png"), p_added, width = 9, height
 
 p_removed <- ggplot(delta_counts, aes(x = transition, y = removed, fill = transition)) +
   geom_col(show.legend = FALSE) +
-  geom_text(aes(label = removed), vjust = -0.3, color = "white", size = 4) +
+  geom_text(aes(label = removed), vjust = -0.3, color = "#0c223f", size = 4) +
   labs(title = "Resources Removed at Each Version Transition",
        x = "Transition (previous → current)", y = "Count Removed")
 p_removed <- apply_theme(p_removed, base_size = 14)
