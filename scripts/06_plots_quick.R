@@ -15,7 +15,7 @@ p1 <- res %>%
   count(version) %>%
   ggplot(aes(x = version, y = n, fill = version)) +
   geom_col(show.legend = FALSE) +
-  geom_text(aes(label = scales::comma(n)), vjust = -0.3, color = "#f0f4f8", size = 4) +
+  geom_text(aes(label = scales::comma(n)), vjust = -0.3, color = "#0c223f", size = 4) +
   labs(
     title = "FHIR Resources by Version",
     x = "FHIR Version",
@@ -43,7 +43,7 @@ p2 <- top_data %>%
   geom_text(
     aes(label = scales::comma(n)),
     hjust = -0.1,
-    color = "#f0f4f8",
+    color = "#0c223f",
     size = 4
   ) +
   expand_limits(y = max(top_data$n) * 1.15) +
@@ -78,7 +78,7 @@ p3 <- top_by_version %>%
   geom_text(
     aes(label = scales::comma(n)),
     hjust = -0.1,
-    color = "#f0f4f8",
+    color = "#0c223f",
     size = 3
   ) +
   labs(
