@@ -65,7 +65,7 @@
 "DocumentManifest",1,1,1,1,0,0
 "DocumentReference",1,1,1,1,1,1
 "Documentation",1,0,0,0,0,0
-"Documents",1,1,1,1,1,1
+"Documents",1,1,1,1,1,0
 "DomainResource",0,1,1,1,1,1
 "EffectEvidenceSynthesis",0,0,1,0,0,0
 "EligibilityRequest",1,1,0,0,0,0
@@ -90,7 +90,7 @@
 "GenomicStudy",0,0,0,0,1,1
 "Glossary",0,0,0,0,1,1
 "Goal",1,1,1,1,1,1
-"GraphDefinition",0,1,1,1,1,1
+"GraphDefinition",0,1,1,1,1,0
 "Group",1,1,1,1,1,1
 "GuidanceResponse",0,1,1,1,1,1
 "HealthcareService",1,1,1,1,1,1

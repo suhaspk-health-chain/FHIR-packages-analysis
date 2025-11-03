@@ -38,7 +38,7 @@ theme_healthchain <- function(base_size = 14) {
       legend.title      = element_text(color = "#0c223f", face = "bold"),
       strip.background  = element_rect(fill = "#123358", color = NA),
       strip.text        = element_text(color = "#ffffff", face = "bold"),
-      panel.grid.major  = element_line(color = "#1d3557", linewidth = 0.3),
+      panel.grid.major  = element_line(color = "#f26d21", linewidth = 0.3),
       panel.grid.minor  = element_blank(),
       plot.margin       = margin(t = 28, r = 18, b = 16, l = 28)
     )
