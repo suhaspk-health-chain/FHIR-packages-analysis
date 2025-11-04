@@ -34,7 +34,7 @@ function(input, output, session) {
     scales::comma(kpi_authors_nonempty(resources_tbl))
   })
   
-  # ---- NEW: Interactive Custom Plot Generation (ALL PLOT TYPES) ----------------
+  # ---- Interactive Custom Plot Generation (ALL 7 PLOT TYPES) --------------------
   custom_plot_reactive <- eventReactive(input$generate_plot, {
     df <- resources_tbl
     req(nrow(df) > 0)
@@ -226,7 +226,6 @@ function(input, output, session) {
         )
       
       # ============ PLOT TYPE 5: SCATTER PLOT WITH TREND LINE ============
-      # ============ PLOT TYPE 5: IMPROVED SCATTER PLOT ============
     } else if (input$plot_type == "scatter") {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
@@ -247,17 +246,15 @@ function(input, output, session) {
       # Get number of colors needed
       n_colors <- length(unique(df_scatter[[x_var]]))
       
-      # Use Dark2 palette - much better visibility on white background
+      # Use Dark2 palette - better visibility on white background
       if (n_colors <= 8) {
         color_palette <- RColorBrewer::brewer.pal(max(3, n_colors), "Dark2")[1:n_colors]
       } else if (n_colors <= 12) {
-        # Combine Dark2 and Set1 for more colors
         color_palette <- c(
           RColorBrewer::brewer.pal(8, "Dark2"),
           RColorBrewer::brewer.pal(min(n_colors - 8, 9), "Set1")
         )[1:n_colors]
       } else {
-        # Use multiple palettes for many colors
         color_palette <- rep(
           c(RColorBrewer::brewer.pal(8, "Dark2"), 
             RColorBrewer::brewer.pal(9, "Set1")), 
@@ -265,10 +262,10 @@ function(input, output, session) {
         )
       }
       
-      # Create base scatter plot with improved styling
+      # Create base scatter plot
       p <- df_scatter %>%
         ggplot(aes(x = x_count, y = y_count, color = .data[[x_var]], size = n)) +
-        geom_point(alpha = 0.8, stroke = 1) +  # Increased alpha and added stroke
+        geom_point(alpha = 0.8, stroke = 1) +
         scale_size_continuous(
           range = c(4, 20), 
           name = "Intersection\nCount",
@@ -296,24 +293,23 @@ function(input, output, session) {
           panel.grid.minor = element_line(color = "#f0f0f0", linewidth = 0.2)
         )
       
-      # Add trend line if requested with better styling
+      # Add trend line if requested
       if (input$show_trend) {
         p <- p + 
           geom_smooth(
             method = "lm", 
             se = TRUE, 
-            color = "#f26d21",      # Health Chain orange
+            color = "#f26d21",
             fill = "#f26d21",
             alpha = 0.15,
             linewidth = 2,
             linetype = "solid"
           ) +
-          # Add correlation annotation
           annotate(
             "text",
             x = Inf,
             y = Inf,
-            label = "Negative Correlation:\nHigher Status counts →\nLower Realm counts",
+            label = "Trend Line:\nLinear Regression",
             hjust = 1.1,
             vjust = 1.5,
             size = 3.5,
@@ -321,15 +317,158 @@ function(input, output, session) {
             fontface = "italic"
           )
       }
+      
+      # ============ PLOT TYPE 6: CATEGORICAL HEATMAP (FIXED) ============
+    } else if (input$plot_type == "heatmap") {
+      y_var <- input$plot_y_var
+      y_label <- var_labels[y_var]
+      
+      # Get top N for both variables
+      top_x <- df %>%
+        filter(!is.na(!!sym(x_var)), !!sym(x_var) != "") %>%
+        count(!!sym(x_var), sort = TRUE) %>%
+        slice_head(n = min(top_n, 15)) %>%
+        pull(!!sym(x_var))
+      
+      top_y <- df %>%
+        filter(!is.na(!!sym(y_var)), !!sym(y_var) != "") %>%
+        count(!!sym(y_var), sort = TRUE) %>%
+        slice_head(n = min(top_n, 15)) %>%
+        pull(!!sym(y_var))
+      
+      # Create cross-tabulation with proper column selection
+      heatmap_data <- df %>%
+        filter(
+          !!sym(x_var) %in% top_x,
+          !!sym(y_var) %in% top_y
+        ) %>%
+        count(!!sym(x_var), !!sym(y_var)) %>%
+        complete(!!sym(x_var), !!sym(y_var), fill = list(n = 0))
+      
+      # Create heatmap
+      p <- heatmap_data %>%
+        ggplot(aes(x = !!sym(x_var), y = !!sym(y_var), fill = n)) +
+        geom_tile(color = "white", linewidth = 1) +
+        geom_text(aes(label = ifelse(n > 0, scales::comma(n), "")), 
+                  color = "white", fontface = "bold", size = 3.5) +
+        scale_fill_gradientn(
+          colors = c("#0c223f", "#123358", "#f26d21", "#ffa500"),
+          values = scales::rescale(c(0, 0.25, 0.75, 1)),
+          name = "Package\nCount",
+          labels = scales::comma
+        ) +
+        labs(
+          title = paste("Package Distribution Heatmap:", x_label, "vs", y_label),
+          subtitle = paste("Cell color intensity shows package count. Top", length(top_x), "×", length(top_y), "combinations"),
+          x = x_label,
+          y = y_label
+        ) +
+        theme_healthchain(base_size = 12) +
+        theme(
+          axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+          axis.text.y = element_text(size = 10),
+          panel.grid = element_blank(),
+          legend.position = "right"
+        ) +
+        coord_fixed(ratio = 1)
+      
+      
+      
+      # ============ PLOT TYPE 7: CORRELATION MATRIX (FIXED) ============
+    } else if (input$plot_type == "correlation") {
+      # Create correlation-like matrix showing co-occurrence strength
+      vars <- c("version", "realm", "status", "auth")
+      var_labels_full <- c("version" = "FHIR Version", "realm" = "Realm", 
+                           "status" = "Status", "auth" = "Author")
+      
+      # Create all pairwise combinations
+      correlation_list <- list()
+      
+      for (v1 in vars) {
+        for (v2 in vars) {
+          if (v1 == v2) {
+            # Diagonal: number of unique values
+            assoc_value <- -length(unique(df[[v1]][!is.na(df[[v1]]) & df[[v1]] != ""]))
+          } else {
+            # Off-diagonal: calculate association strength
+            temp_df <- df %>%
+              filter(
+                !is.na(!!sym(v1)), !!sym(v1) != "",
+                !is.na(!!sym(v2)), !!sym(v2) != ""
+              ) %>%
+              count(!!sym(v1), !!sym(v2))
+            
+            if (nrow(temp_df) == 0) {
+              assoc_value <- 0
+            } else {
+              # Normalized association
+              total_combos <- n_distinct(df[[v1]][!is.na(df[[v1]])]) * 
+                n_distinct(df[[v2]][!is.na(df[[v2]])])
+              actual_combos <- nrow(temp_df)
+              assoc_value <- (actual_combos / total_combos) * 100
+            }
+          }
+          
+          correlation_list[[length(correlation_list) + 1]] <- data.frame(
+            var1 = v1,
+            var2 = v2,
+            association = assoc_value,
+            var1_label = var_labels_full[v1],
+            var2_label = var_labels_full[v2],
+            is_diagonal = (v1 == v2),
+            stringsAsFactors = FALSE
+          )
+        }
+      }
+      
+      # Combine into data frame
+      correlation_data <- bind_rows(correlation_list)
+      
+      # Create correlation matrix heatmap
+      p <- correlation_data %>%
+        ggplot(aes(x = var1_label, y = var2_label, fill = association)) +
+        geom_tile(color = "white", linewidth = 2) +
+        geom_text(
+          aes(label = ifelse(
+            is_diagonal,
+            paste0(abs(association), "\nlevels"),
+            paste0(round(association, 1), "%")
+          )),
+          color = "white",
+          fontface = "bold",
+          size = 4
+        ) +
+        scale_fill_gradient2(
+          low = "#0c223f",
+          mid = "#f26d21",
+          high = "#ffa500",
+          midpoint = 25,
+          name = "Association\nStrength (%)",
+          limits = c(-200, 100)
+        ) +
+        labs(
+          title = "Variable Association Matrix",
+          subtitle = "Shows relationship strength between categorical variables\nDiagonal = number of unique levels",
+          x = "",
+          y = ""
+        ) +
+        theme_healthchain(base_size = 13) +
+        theme(
+          axis.text.x = element_text(angle = 45, hjust = 1, size = 11, face = "bold"),
+          axis.text.y = element_text(size = 11, face = "bold"),
+          panel.grid = element_blank(),
+          legend.position = "right",
+          axis.ticks = element_blank()
+        ) +
+        coord_fixed()
     }
-    
     
     return(p)
   })
   
   output$custom_plot <- renderPlot({
     custom_plot_reactive()
-  }, height = 600, width = "auto")
+  }, height = 650, width = "auto")
   
   output$plot_generated <- reactive({
     !is.null(input$generate_plot) && input$generate_plot > 0
@@ -354,7 +493,9 @@ function(input, output, session) {
       })
       
       # Adjust size based on plot type
-      if (input$plot_type == "scatter") {
+      if (input$plot_type %in% c("heatmap", "correlation")) {
+        png(file, width = 12, height = 12, units = "in", res = 300, bg = "white")
+      } else if (input$plot_type == "scatter") {
         png(file, width = 14, height = 10, units = "in", res = 300, bg = "white")
       } else {
         png(file, width = 12, height = 9, units = "in", res = 300, bg = "white")

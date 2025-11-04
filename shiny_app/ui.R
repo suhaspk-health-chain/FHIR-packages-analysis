@@ -1,5 +1,5 @@
 # ==============================================================
-# ui.R — FHIR Packages Dashboard UI
+# ui.R — FHIR Packages Dashboard UI (WITH HEATMAPS)
 # ==============================================================
 
 navbarPage(
@@ -51,7 +51,9 @@ navbarPage(
                                      "Pie Chart" = "pie",
                                      "Grouped Bars" = "grouped",
                                      "Stacked Bars" = "stacked",
-                                     "Scatter Plot" = "scatter"
+                                     "Scatter Plot" = "scatter",
+                                     "Heatmap" = "heatmap",
+                                     "Correlation Matrix" = "correlation"
                                    ),
                                    selected = "bar"
                                  )
@@ -71,10 +73,10 @@ navbarPage(
                           ),
                           column(2,
                                  conditionalPanel(
-                                   condition = "input.plot_type == 'grouped' || input.plot_type == 'stacked' || input.plot_type == 'scatter'",
+                                   condition = "input.plot_type != 'bar' && input.plot_type != 'pie' && input.plot_type != 'correlation'",
                                    selectInput(
                                      "plot_y_var",
-                                     "Y-Axis / Group Variable:",
+                                     "Y-Axis Variable:",
                                      choices = c(
                                        "FHIR Version" = "version",
                                        "Realm" = "realm",
@@ -128,11 +130,13 @@ navbarPage(
                         condition = "output.plot_generated",
                         downloadButton("download_custom_plot", "Download Plot", class = "btn-sm btn-info", style="margin-bottom:10px;")
                       ),
-                      plotOutput("custom_plot", height = "600px")
+                      plotOutput("custom_plot", height = "650px")
                )
              )
            )
   ),
+  
+  # ... REST OF THE TABS REMAIN THE SAME ...
   
   # ---- TAB 2: Authors ----
   tabPanel("Authors",
