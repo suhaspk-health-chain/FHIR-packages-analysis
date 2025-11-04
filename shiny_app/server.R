@@ -34,7 +34,7 @@ function(input, output, session) {
     scales::comma(kpi_authors_nonempty(resources_tbl))
   })
   
-  # ---- NEW: Interactive Custom Plot Generation ----------------------------------
+  # ---- NEW: Interactive Custom Plot Generation (ALL PLOT TYPES) ----------------
   custom_plot_reactive <- eventReactive(input$generate_plot, {
     df <- resources_tbl
     req(nrow(df) > 0)
@@ -51,6 +51,7 @@ function(input, output, session) {
     
     x_label <- var_labels[input$plot_x_var]
     x_var <- input$plot_x_var
+    top_n <- input$top_n %||% 15
     
     # Clean data - remove NA and empty values
     df_clean <- df %>%
@@ -58,95 +59,278 @@ function(input, output, session) {
     
     req(nrow(df_clean) > 0)
     
-    # Limit to top 15 values for clarity
+    # Limit to top N values
     top_values <- df_clean %>%
       count(.data[[x_var]], sort = TRUE) %>%
-      slice_head(n = 15) %>%
+      slice_head(n = top_n) %>%
       pull(.data[[x_var]])
     
     df_plot <- df_clean %>%
       filter(.data[[x_var]] %in% top_values)
     
-    # Generate plot based on type
+    # ============ PLOT TYPE 1: SIMPLE BAR CHART ============
     if (input$plot_type == "bar") {
-      # Simple bar chart
       p <- df_plot %>%
         count(.data[[x_var]], sort = TRUE) %>%
         ggplot(aes(x = reorder(.data[[x_var]], n), y = n, fill = .data[[x_var]])) +
-        geom_col(show.legend = FALSE) +
+        geom_col(show.legend = FALSE, color = "white", linewidth = 0.5) +
         geom_text(aes(label = scales::comma(n)), hjust = -0.2, size = 4, color = "#0f1f2e") +
         coord_flip() +
         scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
         labs(
           title = paste("FHIR Package Distribution by", x_label),
-          subtitle = paste("Top 15", tolower(x_label), "values"),
+          subtitle = paste("Top", top_n, tolower(x_label), "values"),
           x = x_label,
           y = "Package Count"
         ) +
         theme_healthchain(base_size = 13)
       
-    } else if (input$plot_type == "grouped") {
-      # Grouped bar chart
-      fill_var <- input$plot_fill_var
-      fill_label <- var_labels[fill_var]
+      # ============ PLOT TYPE 2: PIE CHART ============
+    } else if (input$plot_type == "pie") {
+      # Limit to top 10 for pie chart clarity
+      pie_data <- df_plot %>%
+        count(.data[[x_var]], sort = TRUE) %>%
+        slice_head(n = min(10, top_n)) %>%
+        mutate(
+          percentage = n / sum(n) * 100,
+          label_text = paste0(.data[[x_var]], "\n", scales::comma(n), " (", round(percentage, 1), "%)")
+        )
       
-      df_grouped <- df_plot %>%
-        filter(!is.na(.data[[fill_var]]), .data[[fill_var]] != "") %>%
-        count(.data[[x_var]], .data[[fill_var]], sort = TRUE)
-      
-      p <- df_grouped %>%
-        ggplot(aes(x = .data[[x_var]], y = n, fill = .data[[fill_var]])) +
-        geom_col(position = "dodge", width = 0.8) +
+      p <- pie_data %>%
+        ggplot(aes(x = "", y = n, fill = .data[[x_var]])) +
+        geom_col(color = "white", linewidth = 2) +
         geom_text(
-          aes(label = scales::comma(n)),
-          position = position_dodge(width = 0.8),
-          vjust = -0.3, size = 3, color = "#0f1f2e"
+          aes(label = label_text),
+          position = position_stack(vjust = 0.5),
+          size = 3.5,
+          color = "#0f1f2e",
+          fontface = "bold"
         ) +
-        scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+        coord_polar(theta = "y", start = 0) +
+        scale_fill_manual(values = RColorBrewer::brewer.pal(min(10, nrow(pie_data)), "Set3")) +
         labs(
-          title = paste("FHIR Package Distribution by", x_label, "and", fill_label),
-          x = x_label,
-          y = "Package Count",
-          fill = fill_label
+          title = paste("FHIR Package Distribution by", x_label),
+          subtitle = paste("Top", nrow(pie_data), tolower(x_label), "values"),
+          fill = x_label
         ) +
-        theme_healthchain(base_size = 12) +
+        theme_healthchain(base_size = 13) +
         theme(
-          axis.text.x = element_text(angle = 45, hjust = 1),
+          axis.text = element_blank(),
+          axis.title = element_blank(),
+          axis.ticks = element_blank(),
+          panel.grid = element_blank(),
           legend.position = "right"
         )
       
-    } else {
-      # Stacked bar chart
-      fill_var <- input$plot_fill_var
-      fill_label <- var_labels[fill_var]
+      # ============ PLOT TYPE 3: GROUPED BAR CHART ============
+    } else if (input$plot_type == "grouped") {
+      y_var <- input$plot_y_var
+      y_label <- var_labels[y_var]
       
-      df_stacked <- df_plot %>%
-        filter(!is.na(.data[[fill_var]]), .data[[fill_var]] != "") %>%
-        count(.data[[x_var]], .data[[fill_var]], sort = TRUE)
+      # Get top 8 for fill variable
+      top_y_values <- df_plot %>%
+        filter(!is.na(.data[[y_var]]), .data[[y_var]] != "") %>%
+        count(.data[[y_var]], sort = TRUE) %>%
+        slice_head(n = 8) %>%
+        pull(.data[[y_var]])
       
-      p <- df_stacked %>%
-        ggplot(aes(x = reorder(.data[[x_var]], n, sum), y = n, fill = .data[[fill_var]])) +
-        geom_col(position = "stack") +
+      df_grouped <- df_plot %>%
+        filter(!is.na(.data[[y_var]]), .data[[y_var]] %in% top_y_values) %>%
+        count(.data[[x_var]], .data[[y_var]], sort = TRUE)
+      
+      p <- df_grouped %>%
+        ggplot(aes(x = .data[[x_var]], y = n, fill = .data[[y_var]])) +
+        geom_col(position = "dodge", width = 0.8, color = "white", linewidth = 0.8) +
+        geom_text(
+          aes(label = scales::comma(n)),
+          position = position_dodge(width = 0.8),
+          angle = 0,
+          hjust = -0.1,
+          size = 3,
+          color = "#0f1f2e"
+        ) +
         coord_flip() +
-        scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+        scale_fill_manual(values = RColorBrewer::brewer.pal(8, "Set2")) +
+        scale_y_continuous(expand = expansion(mult = c(0, 0.2))) +
         labs(
-          title = paste("FHIR Package Distribution by", x_label, "and", fill_label),
+          title = paste("FHIR Package Distribution by", x_label, "and", y_label),
           x = x_label,
           y = "Package Count",
-          fill = fill_label
+          fill = y_label
         ) +
         theme_healthchain(base_size = 12) +
-        theme(legend.position = "right")
+        theme(
+          legend.position = "right",
+          legend.title = element_text(face = "bold")
+        )
+      
+      # ============ PLOT TYPE 4: STACKED BAR CHART ============
+    } else if (input$plot_type == "stacked") {
+      y_var <- input$plot_y_var
+      y_label <- var_labels[y_var]
+      
+      # Get top 8 categories for stacking
+      top_y_values <- df_plot %>%
+        filter(!is.na(.data[[y_var]]), .data[[y_var]] != "") %>%
+        count(.data[[y_var]], sort = TRUE) %>%
+        slice_head(n = 8) %>%
+        pull(.data[[y_var]])
+      
+      df_stacked <- df_plot %>%
+        filter(!is.na(.data[[y_var]]), .data[[y_var]] != "") %>%
+        mutate(
+          y_category = ifelse(.data[[y_var]] %in% top_y_values, 
+                              as.character(.data[[y_var]]), 
+                              "Other")
+        ) %>%
+        count(.data[[x_var]], y_category, sort = TRUE) %>%
+        group_by(.data[[x_var]]) %>%
+        mutate(
+          total = sum(n),
+          percentage = n / total * 100,
+          cum_sum = cumsum(n),
+          label_pos = cum_sum - n/2,
+          show_label = percentage >= 5
+        ) %>%
+        ungroup()
+      
+      p <- df_stacked %>%
+        ggplot(aes(x = reorder(.data[[x_var]], total), y = n, fill = y_category)) +
+        geom_col(position = "stack", color = "white", linewidth = 2) +
+        geom_text(
+          data = . %>% filter(show_label),
+          aes(y = label_pos, label = scales::comma(n)),
+          angle = 0,
+          hjust = 0.5,
+          size = 4,
+          color = "#0f1f2e",
+          fontface = "bold"
+        ) +
+        coord_flip() +
+        scale_fill_manual(
+          values = RColorBrewer::brewer.pal(9, "Set1"),
+          name = paste(y_label, "(Top 8)")
+        ) +
+        scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+        labs(
+          title = paste("FHIR Package Distribution by", x_label),
+          subtitle = paste0("Grouped by ", tolower(y_label), ". Labels shown for segments ≥5%"),
+          x = x_label,
+          y = "Package Count"
+        ) +
+        theme_healthchain(base_size = 13) +
+        theme(
+          legend.position = "right",
+          legend.title = element_text(face = "bold", size = 12),
+          panel.grid.major.y = element_blank()
+        )
+      
+      # ============ PLOT TYPE 5: SCATTER PLOT WITH TREND LINE ============
+      # ============ PLOT TYPE 5: IMPROVED SCATTER PLOT ============
+    } else if (input$plot_type == "scatter") {
+      y_var <- input$plot_y_var
+      y_label <- var_labels[y_var]
+      
+      # Create aggregated data for scatter plot
+      df_scatter <- df %>%
+        filter(
+          !is.na(.data[[x_var]]), .data[[x_var]] != "",
+          !is.na(.data[[y_var]]), .data[[y_var]] != ""
+        ) %>%
+        count(.data[[x_var]], .data[[y_var]]) %>%
+        group_by(.data[[x_var]]) %>%
+        mutate(x_count = sum(n)) %>%
+        group_by(.data[[y_var]]) %>%
+        mutate(y_count = sum(n)) %>%
+        ungroup()
+      
+      # Get number of colors needed
+      n_colors <- length(unique(df_scatter[[x_var]]))
+      
+      # Use Dark2 palette - much better visibility on white background
+      if (n_colors <= 8) {
+        color_palette <- RColorBrewer::brewer.pal(max(3, n_colors), "Dark2")[1:n_colors]
+      } else if (n_colors <= 12) {
+        # Combine Dark2 and Set1 for more colors
+        color_palette <- c(
+          RColorBrewer::brewer.pal(8, "Dark2"),
+          RColorBrewer::brewer.pal(min(n_colors - 8, 9), "Set1")
+        )[1:n_colors]
+      } else {
+        # Use multiple palettes for many colors
+        color_palette <- rep(
+          c(RColorBrewer::brewer.pal(8, "Dark2"), 
+            RColorBrewer::brewer.pal(9, "Set1")), 
+          length.out = n_colors
+        )
+      }
+      
+      # Create base scatter plot with improved styling
+      p <- df_scatter %>%
+        ggplot(aes(x = x_count, y = y_count, color = .data[[x_var]], size = n)) +
+        geom_point(alpha = 0.8, stroke = 1) +  # Increased alpha and added stroke
+        scale_size_continuous(
+          range = c(4, 20), 
+          name = "Intersection\nCount",
+          breaks = c(100, 1000, 5000, 10000)
+        ) +
+        scale_color_manual(
+          values = color_palette,
+          name = x_label
+        ) +
+        labs(
+          title = paste("Relationship between", x_label, "and", y_label),
+          subtitle = paste(
+            "Each point represents a", tolower(x_label), "-", tolower(y_label),
+            "combination.\nBubble size shows package count at that intersection."
+          ),
+          x = paste("Total Packages by", x_label),
+          y = paste("Total Packages by", y_label)
+        ) +
+        theme_healthchain(base_size = 12) +
+        theme(
+          legend.position = "right",
+          legend.title = element_text(face = "bold", size = 11),
+          legend.text = element_text(size = 9),
+          panel.grid.major = element_line(color = "#e0e0e0", linewidth = 0.3),
+          panel.grid.minor = element_line(color = "#f0f0f0", linewidth = 0.2)
+        )
+      
+      # Add trend line if requested with better styling
+      if (input$show_trend) {
+        p <- p + 
+          geom_smooth(
+            method = "lm", 
+            se = TRUE, 
+            color = "#f26d21",      # Health Chain orange
+            fill = "#f26d21",
+            alpha = 0.15,
+            linewidth = 2,
+            linetype = "solid"
+          ) +
+          # Add correlation annotation
+          annotate(
+            "text",
+            x = Inf,
+            y = Inf,
+            label = "Negative Correlation:\nHigher Status counts →\nLower Realm counts",
+            hjust = 1.1,
+            vjust = 1.5,
+            size = 3.5,
+            color = "#0c223f",
+            fontface = "italic"
+          )
+      }
     }
+    
     
     return(p)
   })
   
   output$custom_plot <- renderPlot({
     custom_plot_reactive()
-  }, height = 550, width = "auto")
+  }, height = 600, width = "auto")
   
-  # Flag to show download button after plot is generated
   output$plot_generated <- reactive({
     !is.null(input$generate_plot) && input$generate_plot > 0
   })
@@ -154,7 +338,7 @@ function(input, output, session) {
   
   output$download_custom_plot <- downloadHandler(
     filename = function() {
-      paste0("fhir_custom_", input$plot_x_var, "_", Sys.Date(), ".png")
+      paste0("fhir_custom_", input$plot_type, "_", input$plot_x_var, "_", Sys.Date(), ".png")
     },
     content = function(file) {
       p <- custom_plot_reactive()
@@ -169,7 +353,12 @@ function(input, output, session) {
         p
       })
       
-      png(file, width = 12, height = 9, units = "in", res = 300, bg = "white")
+      # Adjust size based on plot type
+      if (input$plot_type == "scatter") {
+        png(file, width = 14, height = 10, units = "in", res = 300, bg = "white")
+      } else {
+        png(file, width = 12, height = 9, units = "in", res = 300, bg = "white")
+      }
       print(p_final)
       dev.off()
     }

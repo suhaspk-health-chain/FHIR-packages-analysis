@@ -14,7 +14,11 @@ suppressPackageStartupMessages({
   library(readr)
   library(cowplot)
   library(magick)
+  library(colorspace)  # Add this line
+  library(RColorBrewer)  # Also add this if not already present
+  library(forcats)  # Add this for the stacked chart
 })
+
 
 # Source the Health Chain theme
 source("05_theme_healthchain.R", local = TRUE)

@@ -42,7 +42,21 @@ navbarPage(
                         style = "background:#f9fafb; border:1px solid #ddd;",
                         h4("Generate Custom Plot", style="color:#f26d21; margin-top:0;"),
                         fluidRow(
-                          column(3,
+                          column(2,
+                                 selectInput(
+                                   "plot_type",
+                                   "Plot Type:",
+                                   choices = c(
+                                     "Bar Chart" = "bar",
+                                     "Pie Chart" = "pie",
+                                     "Grouped Bars" = "grouped",
+                                     "Stacked Bars" = "stacked",
+                                     "Scatter Plot" = "scatter"
+                                   ),
+                                   selected = "bar"
+                                 )
+                          ),
+                          column(2,
                                  selectInput(
                                    "plot_x_var",
                                    "X-Axis Variable:",
@@ -55,34 +69,43 @@ navbarPage(
                                    selected = "version"
                                  )
                           ),
-                          column(3,
-                                 selectInput(
-                                   "plot_type",
-                                   "Plot Type:",
-                                   choices = c(
-                                     "Bar Chart" = "bar",
-                                     "Grouped by Version" = "grouped",
-                                     "Stacked Bar" = "stacked"
-                                   ),
-                                   selected = "bar"
-                                 )
-                          ),
-                          column(3,
+                          column(2,
                                  conditionalPanel(
-                                   condition = "input.plot_type == 'grouped' || input.plot_type == 'stacked'",
+                                   condition = "input.plot_type == 'grouped' || input.plot_type == 'stacked' || input.plot_type == 'scatter'",
                                    selectInput(
-                                     "plot_fill_var",
-                                     "Group/Fill Variable:",
+                                     "plot_y_var",
+                                     "Y-Axis / Group Variable:",
                                      choices = c(
                                        "FHIR Version" = "version",
                                        "Realm" = "realm",
-                                       "Status" = "status"
+                                       "Status" = "status",
+                                       "Author" = "auth"
                                      ),
-                                     selected = "version"
+                                     selected = "realm"
                                    )
                                  )
                           ),
-                          column(3,
+                          column(2,
+                                 conditionalPanel(
+                                   condition = "input.plot_type == 'scatter'",
+                                   checkboxInput(
+                                     "show_trend",
+                                     "Show Trend Line",
+                                     value = TRUE
+                                   )
+                                 )
+                          ),
+                          column(2,
+                                 numericInput(
+                                   "top_n",
+                                   "Top N Values:",
+                                   value = 15,
+                                   min = 5,
+                                   max = 30,
+                                   step = 5
+                                 )
+                          ),
+                          column(2,
                                  div(style="margin-top:25px;",
                                      actionButton(
                                        "generate_plot",
@@ -105,7 +128,7 @@ navbarPage(
                         condition = "output.plot_generated",
                         downloadButton("download_custom_plot", "Download Plot", class = "btn-sm btn-info", style="margin-bottom:10px;")
                       ),
-                      plotOutput("custom_plot", height = "550px")
+                      plotOutput("custom_plot", height = "600px")
                )
              )
            )
