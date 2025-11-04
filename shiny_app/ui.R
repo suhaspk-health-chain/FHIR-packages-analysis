@@ -1,5 +1,5 @@
 # ==============================================================
-# ui.R — FHIR Packages Dashboard UI (WITH HEATMAPS)
+# ui.R — FHIR Packages Dashboard UI
 # ==============================================================
 
 navbarPage(
@@ -89,6 +89,21 @@ navbarPage(
                           ),
                           column(2,
                                  conditionalPanel(
+                                   condition = "input.plot_type == 'grouped' || input.plot_type == 'stacked'",
+                                   selectInput(
+                                     "facet_var",
+                                     "Facet By:",
+                                     choices = c(
+                                       "None" = "none",
+                                       "FHIR Version" = "version",
+                                       "Realm" = "realm",
+                                       "Status" = "status",
+                                       "Author" = "auth"
+                                     ),
+                                     selected = "none"
+                                   )
+                                 ),
+                                 conditionalPanel(
                                    condition = "input.plot_type == 'scatter'",
                                    checkboxInput(
                                      "show_trend",
@@ -135,8 +150,6 @@ navbarPage(
              )
            )
   ),
-  
-  # ... REST OF THE TABS REMAIN THE SAME ...
   
   # ---- TAB 2: Authors ----
   tabPanel("Authors",

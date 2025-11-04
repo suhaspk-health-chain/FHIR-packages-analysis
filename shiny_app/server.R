@@ -55,24 +55,24 @@ function(input, output, session) {
     
     # Clean data - remove NA and empty values
     df_clean <- df %>%
-      filter(!is.na(.data[[x_var]]), .data[[x_var]] != "", .data[[x_var]] != "NA")
+      filter(!is.na(!!sym(x_var)), !!sym(x_var) != "", !!sym(x_var) != "NA")
     
     req(nrow(df_clean) > 0)
     
     # Limit to top N values
     top_values <- df_clean %>%
-      count(.data[[x_var]], sort = TRUE) %>%
+      count(!!sym(x_var), sort = TRUE) %>%
       slice_head(n = top_n) %>%
-      pull(.data[[x_var]])
+      pull(!!sym(x_var))
     
     df_plot <- df_clean %>%
-      filter(.data[[x_var]] %in% top_values)
+      filter(!!sym(x_var) %in% top_values)
     
     # ============ PLOT TYPE 1: SIMPLE BAR CHART ============
     if (input$plot_type == "bar") {
       p <- df_plot %>%
-        count(.data[[x_var]], sort = TRUE) %>%
-        ggplot(aes(x = reorder(.data[[x_var]], n), y = n, fill = .data[[x_var]])) +
+        count(!!sym(x_var), sort = TRUE) %>%
+        ggplot(aes(x = reorder(!!sym(x_var), n), y = n, fill = !!sym(x_var))) +
         geom_col(show.legend = FALSE, color = "white", linewidth = 0.5) +
         geom_text(aes(label = scales::comma(n)), hjust = -0.2, size = 4, color = "#0f1f2e") +
         coord_flip() +
@@ -87,17 +87,16 @@ function(input, output, session) {
       
       # ============ PLOT TYPE 2: PIE CHART ============
     } else if (input$plot_type == "pie") {
-      # Limit to top 10 for pie chart clarity
       pie_data <- df_plot %>%
-        count(.data[[x_var]], sort = TRUE) %>%
+        count(!!sym(x_var), sort = TRUE) %>%
         slice_head(n = min(10, top_n)) %>%
         mutate(
           percentage = n / sum(n) * 100,
-          label_text = paste0(.data[[x_var]], "\n", scales::comma(n), " (", round(percentage, 1), "%)")
+          label_text = paste0(!!sym(x_var), "\n", scales::comma(n), " (", round(percentage, 1), "%)")
         )
       
       p <- pie_data %>%
-        ggplot(aes(x = "", y = n, fill = .data[[x_var]])) +
+        ggplot(aes(x = "", y = n, fill = !!sym(x_var))) +
         geom_col(color = "white", linewidth = 2) +
         geom_text(
           aes(label = label_text),
@@ -122,24 +121,46 @@ function(input, output, session) {
           legend.position = "right"
         )
       
-      # ============ PLOT TYPE 3: GROUPED BAR CHART ============
+      # ============ PLOT TYPE 3: GROUPED BAR CHART WITH FACETS ============
     } else if (input$plot_type == "grouped") {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
       
       # Get top 8 for fill variable
       top_y_values <- df_plot %>%
-        filter(!is.na(.data[[y_var]]), .data[[y_var]] != "") %>%
-        count(.data[[y_var]], sort = TRUE) %>%
+        filter(!is.na(!!sym(y_var)), !!sym(y_var) != "") %>%
+        count(!!sym(y_var), sort = TRUE) %>%
         slice_head(n = 8) %>%
-        pull(.data[[y_var]])
+        pull(!!sym(y_var))
       
-      df_grouped <- df_plot %>%
-        filter(!is.na(.data[[y_var]]), .data[[y_var]] %in% top_y_values) %>%
-        count(.data[[x_var]], .data[[y_var]], sort = TRUE)
+      # Check if faceting is enabled
+      use_facet <- !is.null(input$facet_var) && input$facet_var != "none"
+      
+      if (use_facet) {
+        facet_var <- input$facet_var
+        facet_label <- var_labels[facet_var]
+        
+        # Get top 6 facet values
+        top_facet_values <- df_plot %>%
+          filter(!is.na(!!sym(facet_var)), !!sym(facet_var) != "") %>%
+          count(!!sym(facet_var), sort = TRUE) %>%
+          slice_head(n = 6) %>%
+          pull(!!sym(facet_var))
+        
+        df_grouped <- df_plot %>%
+          filter(
+            !is.na(!!sym(y_var)), !!sym(y_var) %in% top_y_values,
+            !is.na(!!sym(facet_var)), !!sym(facet_var) %in% top_facet_values
+          ) %>%
+          count(!!sym(x_var), !!sym(y_var), !!sym(facet_var), sort = TRUE)
+      } else {
+        df_grouped <- df_plot %>%
+          filter(!is.na(!!sym(y_var)), !!sym(y_var) %in% top_y_values) %>%
+          count(!!sym(x_var), !!sym(y_var), sort = TRUE)
+      }
       
       p <- df_grouped %>%
-        ggplot(aes(x = .data[[x_var]], y = n, fill = .data[[y_var]])) +
+        ggplot(aes(x = !!sym(x_var), y = n, fill = !!sym(y_var))) +
         geom_col(position = "dodge", width = 0.8, color = "white", linewidth = 0.8) +
         geom_text(
           aes(label = scales::comma(n)),
@@ -164,45 +185,88 @@ function(input, output, session) {
           legend.title = element_text(face = "bold")
         )
       
-      # ============ PLOT TYPE 4: STACKED BAR CHART ============
+      # Add facet if enabled
+      if (use_facet) {
+        p <- p + 
+          facet_wrap(as.formula(paste("~", facet_var)), scales = "free_y", ncol = 2) +
+          labs(subtitle = paste("Faceted by", facet_label, "(top 6 values)"))
+      }
+      
+      # ============ PLOT TYPE 4: STACKED BAR CHART WITH FACETS ============
     } else if (input$plot_type == "stacked") {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
       
+      # Check if faceting is enabled
+      use_facet <- !is.null(input$facet_var) && input$facet_var != "none"
+      
       # Get top 8 categories for stacking
       top_y_values <- df_plot %>%
-        filter(!is.na(.data[[y_var]]), .data[[y_var]] != "") %>%
-        count(.data[[y_var]], sort = TRUE) %>%
+        filter(!is.na(!!sym(y_var)), !!sym(y_var) != "") %>%
+        count(!!sym(y_var), sort = TRUE) %>%
         slice_head(n = 8) %>%
-        pull(.data[[y_var]])
+        pull(!!sym(y_var))
       
-      df_stacked <- df_plot %>%
-        filter(!is.na(.data[[y_var]]), .data[[y_var]] != "") %>%
-        mutate(
-          y_category = ifelse(.data[[y_var]] %in% top_y_values, 
-                              as.character(.data[[y_var]]), 
-                              "Other")
-        ) %>%
-        count(.data[[x_var]], y_category, sort = TRUE) %>%
-        group_by(.data[[x_var]]) %>%
-        mutate(
-          total = sum(n),
-          percentage = n / total * 100,
-          cum_sum = cumsum(n),
-          label_pos = cum_sum - n/2,
-          show_label = percentage >= 5
-        ) %>%
-        ungroup()
+      if (use_facet) {
+        facet_var <- input$facet_var
+        facet_label <- var_labels[facet_var]
+        
+        # Get top 6 facet values
+        top_facet_values <- df_plot %>%
+          filter(!is.na(!!sym(facet_var)), !!sym(facet_var) != "") %>%
+          count(!!sym(facet_var), sort = TRUE) %>%
+          slice_head(n = 6) %>%
+          pull(!!sym(facet_var))
+        
+        df_stacked <- df_plot %>%
+          filter(
+            !is.na(!!sym(y_var)), !!sym(y_var) != "",
+            !is.na(!!sym(facet_var)), !!sym(facet_var) %in% top_facet_values
+          ) %>%
+          mutate(
+            y_category = ifelse(!!sym(y_var) %in% top_y_values, 
+                                as.character(!!sym(y_var)), 
+                                "Other")
+          ) %>%
+          count(!!sym(x_var), y_category, !!sym(facet_var), sort = TRUE) %>%
+          group_by(!!sym(x_var), !!sym(facet_var)) %>%
+          mutate(
+            total = sum(n),
+            percentage = n / total * 100,
+            cum_sum = cumsum(n),
+            label_pos = cum_sum - n/2,
+            show_label = percentage >= 8
+          ) %>%
+          ungroup()
+      } else {
+        df_stacked <- df_plot %>%
+          filter(!is.na(!!sym(y_var)), !!sym(y_var) != "") %>%
+          mutate(
+            y_category = ifelse(!!sym(y_var) %in% top_y_values, 
+                                as.character(!!sym(y_var)), 
+                                "Other")
+          ) %>%
+          count(!!sym(x_var), y_category, sort = TRUE) %>%
+          group_by(!!sym(x_var)) %>%
+          mutate(
+            total = sum(n),
+            percentage = n / total * 100,
+            cum_sum = cumsum(n),
+            label_pos = cum_sum - n/2,
+            show_label = percentage >= 5
+          ) %>%
+          ungroup()
+      }
       
       p <- df_stacked %>%
-        ggplot(aes(x = reorder(.data[[x_var]], total), y = n, fill = y_category)) +
+        ggplot(aes(x = reorder(!!sym(x_var), total), y = n, fill = y_category)) +
         geom_col(position = "stack", color = "white", linewidth = 2) +
         geom_text(
           data = . %>% filter(show_label),
           aes(y = label_pos, label = scales::comma(n)),
           angle = 0,
           hjust = 0.5,
-          size = 4,
+          size = 3.5,
           color = "#0f1f2e",
           fontface = "bold"
         ) +
@@ -214,7 +278,6 @@ function(input, output, session) {
         scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
         labs(
           title = paste("FHIR Package Distribution by", x_label),
-          subtitle = paste0("Grouped by ", tolower(y_label), ". Labels shown for segments ≥5%"),
           x = x_label,
           y = "Package Count"
         ) +
@@ -225,28 +288,36 @@ function(input, output, session) {
           panel.grid.major.y = element_blank()
         )
       
+      # Add facet if enabled
+      if (use_facet) {
+        p <- p + 
+          facet_wrap(as.formula(paste("~", facet_var)), scales = "free", ncol = 2) +
+          labs(subtitle = paste("Grouped by", tolower(y_label), "and faceted by", tolower(facet_label), "(top 6)"))
+      } else {
+        p <- p + 
+          labs(subtitle = paste("Grouped by", tolower(y_label), ". Labels shown for segments ≥5%"))
+      }
+      
       # ============ PLOT TYPE 5: SCATTER PLOT WITH TREND LINE ============
     } else if (input$plot_type == "scatter") {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
       
-      # Create aggregated data for scatter plot
+      # Create aggregated data
       df_scatter <- df %>%
         filter(
-          !is.na(.data[[x_var]]), .data[[x_var]] != "",
-          !is.na(.data[[y_var]]), .data[[y_var]] != ""
+          !is.na(!!sym(x_var)), !!sym(x_var) != "",
+          !is.na(!!sym(y_var)), !!sym(y_var) != ""
         ) %>%
-        count(.data[[x_var]], .data[[y_var]]) %>%
-        group_by(.data[[x_var]]) %>%
+        count(!!sym(x_var), !!sym(y_var)) %>%
+        group_by(!!sym(x_var)) %>%
         mutate(x_count = sum(n)) %>%
-        group_by(.data[[y_var]]) %>%
+        group_by(!!sym(y_var)) %>%
         mutate(y_count = sum(n)) %>%
         ungroup()
       
-      # Get number of colors needed
       n_colors <- length(unique(df_scatter[[x_var]]))
       
-      # Use Dark2 palette - better visibility on white background
       if (n_colors <= 8) {
         color_palette <- RColorBrewer::brewer.pal(max(3, n_colors), "Dark2")[1:n_colors]
       } else if (n_colors <= 12) {
@@ -262,9 +333,8 @@ function(input, output, session) {
         )
       }
       
-      # Create base scatter plot
       p <- df_scatter %>%
-        ggplot(aes(x = x_count, y = y_count, color = .data[[x_var]], size = n)) +
+        ggplot(aes(x = x_count, y = y_count, color = !!sym(x_var), size = n)) +
         geom_point(alpha = 0.8, stroke = 1) +
         scale_size_continuous(
           range = c(4, 20), 
@@ -293,7 +363,6 @@ function(input, output, session) {
           panel.grid.minor = element_line(color = "#f0f0f0", linewidth = 0.2)
         )
       
-      # Add trend line if requested
       if (input$show_trend) {
         p <- p + 
           geom_smooth(
@@ -318,7 +387,7 @@ function(input, output, session) {
           )
       }
       
-      # ============ PLOT TYPE 6: CATEGORICAL HEATMAP (FIXED) ============
+      # ============ PLOT TYPE 6: CATEGORICAL HEATMAP ============
     } else if (input$plot_type == "heatmap") {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
@@ -336,7 +405,7 @@ function(input, output, session) {
         slice_head(n = min(top_n, 15)) %>%
         pull(!!sym(y_var))
       
-      # Create cross-tabulation with proper column selection
+      # Create cross-tabulation
       heatmap_data <- df %>%
         filter(
           !!sym(x_var) %in% top_x,
@@ -345,7 +414,6 @@ function(input, output, session) {
         count(!!sym(x_var), !!sym(y_var)) %>%
         complete(!!sym(x_var), !!sym(y_var), fill = list(n = 0))
       
-      # Create heatmap
       p <- heatmap_data %>%
         ggplot(aes(x = !!sym(x_var), y = !!sym(y_var), fill = n)) +
         geom_tile(color = "white", linewidth = 1) +
@@ -372,25 +440,19 @@ function(input, output, session) {
         ) +
         coord_fixed(ratio = 1)
       
-      
-      
-      # ============ PLOT TYPE 7: CORRELATION MATRIX (FIXED) ============
+      # ============ PLOT TYPE 7: CORRELATION MATRIX ============
     } else if (input$plot_type == "correlation") {
-      # Create correlation-like matrix showing co-occurrence strength
       vars <- c("version", "realm", "status", "auth")
       var_labels_full <- c("version" = "FHIR Version", "realm" = "Realm", 
                            "status" = "Status", "auth" = "Author")
       
-      # Create all pairwise combinations
       correlation_list <- list()
       
       for (v1 in vars) {
         for (v2 in vars) {
           if (v1 == v2) {
-            # Diagonal: number of unique values
             assoc_value <- -length(unique(df[[v1]][!is.na(df[[v1]]) & df[[v1]] != ""]))
           } else {
-            # Off-diagonal: calculate association strength
             temp_df <- df %>%
               filter(
                 !is.na(!!sym(v1)), !!sym(v1) != "",
@@ -401,7 +463,6 @@ function(input, output, session) {
             if (nrow(temp_df) == 0) {
               assoc_value <- 0
             } else {
-              # Normalized association
               total_combos <- n_distinct(df[[v1]][!is.na(df[[v1]])]) * 
                 n_distinct(df[[v2]][!is.na(df[[v2]])])
               actual_combos <- nrow(temp_df)
@@ -421,10 +482,8 @@ function(input, output, session) {
         }
       }
       
-      # Combine into data frame
       correlation_data <- bind_rows(correlation_list)
       
-      # Create correlation matrix heatmap
       p <- correlation_data %>%
         ggplot(aes(x = var1_label, y = var2_label, fill = association)) +
         geom_tile(color = "white", linewidth = 2) +
@@ -492,7 +551,6 @@ function(input, output, session) {
         p
       })
       
-      # Adjust size based on plot type
       if (input$plot_type %in% c("heatmap", "correlation")) {
         png(file, width = 12, height = 12, units = "in", res = 300, bg = "white")
       } else if (input$plot_type == "scatter") {
@@ -506,7 +564,7 @@ function(input, output, session) {
   )
   outputOptions(output, "download_custom_plot", suspendWhenHidden = FALSE)
   
-  # ---- Authors (full dataset) ---------------------------------------------------
+  # ---- Authors ----
   plot_authors_reactive <- reactive({
     df <- resources_tbl
     req(nrow(df) > 0)
@@ -538,17 +596,9 @@ function(input, output, session) {
     },
     content = function(file) {
       p <- plot_authors_reactive()
-      
       p_final <- tryCatch({
-        if (file.exists(HC_LOGO_PATH)) {
-          add_logo_cowplot(p)
-        } else {
-          p
-        }
-      }, error = function(e) {
-        p
-      })
-      
+        if (file.exists(HC_LOGO_PATH)) add_logo_cowplot(p) else p
+      }, error = function(e) p)
       png(file, width = 12, height = 8, units = "in", res = 300, bg = "white")
       print(p_final)
       dev.off()
@@ -557,59 +607,35 @@ function(input, output, session) {
   outputOptions(output, "download_plot_authors", suspendWhenHidden = FALSE)
   
   output$tbl_authors <- renderDT({
-    df <- resources_tbl
-    req(nrow(df) > 0)
-    
-    df %>%
+    resources_tbl %>%
       filter(!is.na(auth), auth != "") %>%
       count(auth, sort = TRUE) %>%
       rename(Author = auth, `Package Count` = n) %>%
-      datatable(
-        class = "stripe hover compact", 
-        options = list(pageLength = 15, scrollY = "400px", scrollCollapse = TRUE),
-        rownames = FALSE
-      )
+      datatable(class = "stripe hover compact", 
+                options = list(pageLength = 15, scrollY = "400px", scrollCollapse = TRUE),
+                rownames = FALSE)
   })
   
-  # ---- Evolution (uses .rds data) -----------------------------------------------
+  # ---- Evolution ----
   plot_added_reactive <- reactive({
     dc <- delta_counts
     req(nrow(dc) > 0)
-    
-    p <- ggplot(dc, aes(x = reorder(transition, added), y = added, fill = transition)) +
+    ggplot(dc, aes(x = reorder(transition, added), y = added, fill = transition)) +
       geom_col(show.legend = FALSE) +
       coord_flip() +
       geom_text(aes(label = scales::comma(added)), hjust = -0.2, size = 4, color = "#0f1f2e") +
       scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-      labs(title = "Resources Added per Transition", 
-           x = "Version Transition", 
-           y = "Resources Added") +
+      labs(title = "Resources Added per Transition", x = "Version Transition", y = "Resources Added") +
       theme_healthchain(base_size = 12)
-    
-    return(p)
   })
   
-  output$plot_added <- renderPlot({
-    plot_added_reactive()
-  }, height = 450, width = "auto")
+  output$plot_added <- renderPlot({ plot_added_reactive() }, height = 450, width = "auto")
   
   output$download_plot_added <- downloadHandler(
-    filename = function() { 
-      paste0("resources_added_", Sys.Date(), ".png") 
-    },
+    filename = function() { paste0("resources_added_", Sys.Date(), ".png") },
     content = function(file) {
       p <- plot_added_reactive()
-      
-      p_final <- tryCatch({
-        if (file.exists(HC_LOGO_PATH)) {
-          add_logo_cowplot(p)
-        } else {
-          p
-        }
-      }, error = function(e) {
-        p
-      })
-      
+      p_final <- tryCatch({ if (file.exists(HC_LOGO_PATH)) add_logo_cowplot(p) else p }, error = function(e) p)
       png(file, width = 10, height = 7, units = "in", res = 300, bg = "white")
       print(p_final)
       dev.off()
@@ -620,41 +646,22 @@ function(input, output, session) {
   plot_removed_reactive <- reactive({
     dc <- delta_counts
     req(nrow(dc) > 0)
-    
-    p <- ggplot(dc, aes(x = reorder(transition, removed), y = removed, fill = transition)) +
+    ggplot(dc, aes(x = reorder(transition, removed), y = removed, fill = transition)) +
       geom_col(show.legend = FALSE) +
       coord_flip() +
       geom_text(aes(label = scales::comma(removed)), hjust = -0.2, size = 4, color = "#0f1f2e") +
       scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-      labs(title = "Resources Removed per Transition", 
-           x = "Version Transition", 
-           y = "Resources Removed") +
+      labs(title = "Resources Removed per Transition", x = "Version Transition", y = "Resources Removed") +
       theme_healthchain(base_size = 12)
-    
-    return(p)
   })
   
-  output$plot_removed <- renderPlot({
-    plot_removed_reactive()
-  }, height = 450, width = "auto")
+  output$plot_removed <- renderPlot({ plot_removed_reactive() }, height = 450, width = "auto")
   
   output$download_plot_removed <- downloadHandler(
-    filename = function() { 
-      paste0("resources_removed_", Sys.Date(), ".png") 
-    },
+    filename = function() { paste0("resources_removed_", Sys.Date(), ".png") },
     content = function(file) {
       p <- plot_removed_reactive()
-      
-      p_final <- tryCatch({
-        if (file.exists(HC_LOGO_PATH)) {
-          add_logo_cowplot(p)
-        } else {
-          p
-        }
-      }, error = function(e) {
-        p
-      })
-      
+      p_final <- tryCatch({ if (file.exists(HC_LOGO_PATH)) add_logo_cowplot(p) else p }, error = function(e) p)
       png(file, width = 10, height = 7, units = "in", res = 300, bg = "white")
       print(p_final)
       dev.off()
@@ -667,36 +674,21 @@ function(input, output, session) {
     if (!nrow(dc)) {
       datatable(data.frame(message = "No transition data available"), options = list(dom='t'))
     } else {
-      datatable(
-        dc, 
-        class = "stripe hover compact", 
-        options = list(pageLength = 10, scrollX = TRUE),
-        rownames = FALSE
-      )
+      datatable(dc, class = "stripe hover compact", options = list(pageLength = 10, scrollX = TRUE), rownames = FALSE)
     }
   })
   
-  # ---- Resource Changes Tab -----------------------------------------------------
+  # ---- Resource Changes ----
   output$tbl_added_resources <- renderDT({
     dc <- delta_counts
     if (!nrow(dc)) {
       datatable(data.frame(message = "No data available"), options = list(dom='t'))
     } else if ("added_resources" %in% names(dc)) {
-      added_list <- dc %>% 
-        select(transition, added_resources) %>%
-        filter(!is.na(added_resources) & added_resources != "")
-      
-      datatable(
-        added_list, 
-        class = "stripe hover compact", 
-        options = list(pageLength = 15, scrollY = "500px", scrollCollapse = TRUE),
-        rownames = FALSE
-      )
+      added_list <- dc %>% select(transition, added_resources) %>% filter(!is.na(added_resources) & added_resources != "")
+      datatable(added_list, class = "stripe hover compact", 
+                options = list(pageLength = 15, scrollY = "500px", scrollCollapse = TRUE), rownames = FALSE)
     } else {
-      datatable(
-        data.frame(message = "Added resources column not found in data"), 
-        options = list(dom='t')
-      )
+      datatable(data.frame(message = "Added resources column not found in data"), options = list(dom='t'))
     }
   })
   
@@ -705,45 +697,27 @@ function(input, output, session) {
     if (!nrow(dc)) {
       datatable(data.frame(message = "No data available"), options = list(dom='t'))
     } else if ("removed_resources" %in% names(dc)) {
-      removed_list <- dc %>% 
-        select(transition, removed_resources) %>%
-        filter(!is.na(removed_resources) & removed_resources != "")
-      
-      datatable(
-        removed_list, 
-        class = "stripe hover compact", 
-        options = list(pageLength = 15, scrollY = "500px", scrollCollapse = TRUE),
-        rownames = FALSE
-      )
+      removed_list <- dc %>% select(transition, removed_resources) %>% filter(!is.na(removed_resources) & removed_resources != "")
+      datatable(removed_list, class = "stripe hover compact", 
+                options = list(pageLength = 15, scrollY = "500px", scrollCollapse = TRUE), rownames = FALSE)
     } else {
-      datatable(
-        data.frame(message = "Removed resources column not found in data"), 
-        options = list(dom='t')
-      )
+      datatable(data.frame(message = "Removed resources column not found in data"), options = list(dom='t'))
     }
   })
   
-  # ---- Tables -------------------------------------------------------------------
+  # ---- Tables ----
   output$tbl_resources <- renderDT({
-    datatable(
-      resources_tbl, 
-      class = "stripe hover compact", 
-      options = list(pageLength = 20, scrollX = TRUE, scrollY = "600px", scrollCollapse = TRUE),
-      rownames = FALSE,
-      filter = 'top'
-    )
+    datatable(resources_tbl, class = "stripe hover compact", 
+              options = list(pageLength = 20, scrollX = TRUE, scrollY = "600px", scrollCollapse = TRUE),
+              rownames = FALSE, filter = 'top')
   })
   
   output$tbl_matrix <- renderDT({
     if (!nrow(matrix_tbl)) {
       datatable(data.frame(message="No matrix available"), options = list(dom='t'))
     } else {
-      datatable(
-        matrix_tbl, 
-        class = "stripe hover compact", 
-        options = list(pageLength = 20, scrollX = TRUE, scrollY = "600px", scrollCollapse = TRUE),
-        rownames = FALSE
-      )
+      datatable(matrix_tbl, class = "stripe hover compact", 
+                options = list(pageLength = 20, scrollX = TRUE, scrollY = "600px", scrollCollapse = TRUE), rownames = FALSE)
     }
   })
   
@@ -751,12 +725,8 @@ function(input, output, session) {
     if (!nrow(stable_tbl)) {
       datatable(data.frame(message="No stable list available"), options = list(dom='t'))
     } else {
-      datatable(
-        stable_tbl, 
-        class = "stripe hover compact", 
-        options = list(pageLength = 20, scrollX = TRUE, scrollY = "600px", scrollCollapse = TRUE),
-        rownames = FALSE
-      )
+      datatable(stable_tbl, class = "stripe hover compact", 
+                options = list(pageLength = 20, scrollX = TRUE, scrollY = "600px", scrollCollapse = TRUE), rownames = FALSE)
     }
   })
   
@@ -764,12 +734,8 @@ function(input, output, session) {
     if (!nrow(raw_preview)) {
       datatable(data.frame(message="Raw preview not available"), options = list(dom='t'))
     } else {
-      datatable(
-        raw_preview, 
-        class = "stripe hover compact", 
-        options = list(pageLength = 10, scrollX = TRUE),
-        rownames = FALSE
-      )
+      datatable(raw_preview, class = "stripe hover compact", 
+                options = list(pageLength = 10, scrollX = TRUE), rownames = FALSE)
     }
   })
 }
