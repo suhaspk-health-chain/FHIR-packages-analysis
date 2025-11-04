@@ -6,22 +6,10 @@ navbarPage(
   title = "FHIR Packages Dashboard",
   theme = bslib::bs_theme(bootswatch = "cosmo"),
   
-  # ---- TAB 1: Overview (with filter) ----
+  # ---- TAB 1: Overview (with interactive plot controls) ----
   tabPanel("Overview",
            fluidPage(
-             # --- FILTER BAR (only visible in Overview tab) ---
-             div(
-               id = "overview-filterbar",
-               style = "padding:12px 16px; margin-bottom:20px; border:1px solid #ddd; border-radius:5px; background:#f9fafb;",
-               h4("Filters", style="margin-top:0; color:#f26d21;"),
-               fluidRow(
-                 column(3, selectizeInput("flt_version", "FHIR version(s)", choices = NULL, multiple = TRUE)),
-                 column(3, selectizeInput("flt_status", "Status", choices = NULL, multiple = TRUE)),
-                 column(3, selectizeInput("flt_author", "Author", choices = NULL, multiple = TRUE)),
-                 column(2, selectizeInput("flt_realm", "Realm", choices = NULL, multiple = TRUE)),
-                 column(1, div(style="margin-top:26px;", actionButton("flt_reset", "Reset", class = "btn btn-sm btn-primary")))
-               )
-             ),
+             br(),
              
              # KPI Cards
              fluidRow(
@@ -35,7 +23,7 @@ navbarPage(
                  )
                )),
                column(9, wellPanel(
-                 h4("Key Metrics (filtered)"),
+                 h4("Key Metrics"),
                  fluidRow(
                    column(3, div(h5("Rows"), h3(textOutput("kpi_rows"), style="color:#f26d21;"))),
                    column(3, div(h5("Packages"), h3(textOutput("kpi_packages"), style="color:#f26d21;"))),
@@ -47,30 +35,83 @@ navbarPage(
              
              hr(),
              
-             # Version Distribution Plot
+             # Interactive Plot Controls
              fluidRow(
-               column(12, 
-                      h4("FHIR Version Distribution"),
-                      downloadButton("download_plot_versions", "Download Plot", class = "btn-sm btn-info", style="margin-bottom:10px;"),
-                      plotOutput("plot_versions", height = "500px")
+               column(12,
+                      wellPanel(
+                        style = "background:#f9fafb; border:1px solid #ddd;",
+                        h4("Generate Custom Plot", style="color:#f26d21; margin-top:0;"),
+                        fluidRow(
+                          column(3,
+                                 selectInput(
+                                   "plot_x_var",
+                                   "X-Axis Variable:",
+                                   choices = c(
+                                     "FHIR Version" = "version",
+                                     "Realm" = "realm",
+                                     "Status" = "status",
+                                     "Author" = "auth"
+                                   ),
+                                   selected = "version"
+                                 )
+                          ),
+                          column(3,
+                                 selectInput(
+                                   "plot_type",
+                                   "Plot Type:",
+                                   choices = c(
+                                     "Bar Chart" = "bar",
+                                     "Grouped by Version" = "grouped",
+                                     "Stacked Bar" = "stacked"
+                                   ),
+                                   selected = "bar"
+                                 )
+                          ),
+                          column(3,
+                                 conditionalPanel(
+                                   condition = "input.plot_type == 'grouped' || input.plot_type == 'stacked'",
+                                   selectInput(
+                                     "plot_fill_var",
+                                     "Group/Fill Variable:",
+                                     choices = c(
+                                       "FHIR Version" = "version",
+                                       "Realm" = "realm",
+                                       "Status" = "status"
+                                     ),
+                                     selected = "version"
+                                   )
+                                 )
+                          ),
+                          column(3,
+                                 div(style="margin-top:25px;",
+                                     actionButton(
+                                       "generate_plot",
+                                       "Generate Plot",
+                                       class = "btn-primary btn-lg",
+                                       icon = icon("chart-bar"),
+                                       width = "100%"
+                                     )
+                                 )
+                          )
+                        )
+                      )
                )
              ),
              
-             br(),
-             hr(),
-             
-             # NEW: Facet Plot by Realm
+             # Plot Output Area
              fluidRow(
-               column(12, 
-                      h4("FHIR Version Distribution by Realm"),
-                      downloadButton("download_plot_realm_facet", "Download Plot", class = "btn-sm btn-info", style="margin-bottom:10px;"),
-                      plotOutput("plot_realm_facet", height = "600px")
+               column(12,
+                      conditionalPanel(
+                        condition = "output.plot_generated",
+                        downloadButton("download_custom_plot", "Download Plot", class = "btn-sm btn-info", style="margin-bottom:10px;")
+                      ),
+                      plotOutput("custom_plot", height = "550px")
                )
              )
            )
   ),
   
-  # ---- TAB 2: Authors (no filter) ----
+  # ---- TAB 2: Authors ----
   tabPanel("Authors",
            fluidPage(
              br(),
@@ -88,7 +129,7 @@ navbarPage(
            )
   ),
   
-  # ---- TAB 3: Evolution (no filter) ----
+  # ---- TAB 3: Evolution ----
   tabPanel("Evolution",
            fluidPage(
              br(),
@@ -114,7 +155,7 @@ navbarPage(
            )
   ),
   
-  # ---- TAB 4: Resource Changes (NEW - no filter) ----
+  # ---- TAB 4: Resource Changes ----
   tabPanel("Resource Changes",
            fluidPage(
              br(),
@@ -133,14 +174,14 @@ navbarPage(
            )
   ),
   
-  # ---- TAB 5: Tables (no filter) ----
+  # ---- TAB 5: Tables ----
   tabPanel("Tables",
            fluidPage(
              br(),
              tabsetPanel(
                tabPanel("Resources", 
                         br(),
-                        h4("All Resources (Filtered)"),
+                        h4("All Resources"),
                         DTOutput("tbl_resources")
                ),
                tabPanel("Presence Matrix", 

@@ -4,49 +4,6 @@
 
 function(input, output, session) {
   
-  # ---- Initialize filter choices from live data (JSON or fallback) ----
-  observe({
-    updateSelectizeInput(session, "flt_version",
-                         choices = choices$version, selected = choices$version, server = TRUE)
-    updateSelectizeInput(session, "flt_status",
-                         choices = choices$status, selected = choices$status, server = TRUE)
-    updateSelectizeInput(session, "flt_author",
-                         choices = choices$author, selected = choices$author, server = TRUE)
-    updateSelectizeInput(session, "flt_realm",
-                         choices = choices$realm, selected = choices$realm, server = TRUE)
-  })
-  
-  observeEvent(input$flt_reset, {
-    updateSelectizeInput(session, "flt_version", selected = choices$version)
-    updateSelectizeInput(session, "flt_status", selected = choices$status)
-    updateSelectizeInput(session, "flt_author", selected = choices$author)
-    updateSelectizeInput(session, "flt_realm", selected = choices$realm)
-  })
-  
-  # ---- Global filtered dataset (for Overview tab only) -------------------------
-  filtered <- reactive({
-    df <- resources_tbl
-    req(nrow(df) > 0)
-    
-    # Apply filters
-    if (!is.null(input$flt_version) && length(input$flt_version) > 0)
-      df <- df %>% filter(version %in% input$flt_version)
-    
-    if (!is.null(input$flt_status) && length(input$flt_status) > 0)
-      df <- df %>% filter(status %in% input$flt_status)
-    
-    if (!is.null(input$flt_author) && length(input$flt_author) > 0)
-      df <- df %>% filter(auth %in% input$flt_author)
-    
-    if (!is.null(input$flt_realm) && length(input$flt_realm) > 0) {
-      want_miss <- "(missing)" %in% input$flt_realm
-      sel <- setdiff(input$flt_realm, "(missing)")
-      df <- df %>% filter( (want_miss & is.na(realm)) | (!is.na(realm) & realm %in% sel) )
-    }
-    
-    df
-  })
-  
   # ---- Meta info outputs --------------------------------------------------------
   output$meta_built_at <- renderText({
     if (!is.null(meta$built_at)) format(meta$built_at, "%Y-%m-%d %H:%M") else "n/a"
@@ -60,162 +17,168 @@ function(input, output, session) {
     meta$source_dirs$raw %||% "n/a"
   })
   
-  # ---- KPIs (filtered - Overview tab only) --------------------------------------
+  # ---- KPIs (full dataset) ------------------------------------------------------
   output$kpi_rows <- renderText({
-    scales::comma(kpi_rows(filtered()))
+    scales::comma(kpi_rows(resources_tbl))
   })
   
   output$kpi_packages <- renderText({
-    scales::comma(kpi_n_distinct(filtered()$package_text))
+    scales::comma(kpi_n_distinct(resources_tbl$package_text))
   })
   
   output$kpi_resources <- renderText({
-    scales::comma(kpi_n_distinct(filtered()$identity_text))
+    scales::comma(kpi_n_distinct(resources_tbl$identity_text))
   })
   
   output$kpi_authors <- renderText({
-    scales::comma(kpi_authors_nonempty(filtered()))
+    scales::comma(kpi_authors_nonempty(resources_tbl))
   })
   
-  # ---- Overview: version distribution (filtered) --------------------------------
-  plot_versions_reactive <- reactive({
-    df <- filtered()
+  # ---- NEW: Interactive Custom Plot Generation ----------------------------------
+  custom_plot_reactive <- eventReactive(input$generate_plot, {
+    df <- resources_tbl
     req(nrow(df) > 0)
+    req(input$plot_x_var)
+    req(input$plot_type)
     
-    p <- df %>%
-      count(version, sort = TRUE) %>%
-      ggplot(aes(x = reorder(version, n), y = n, fill = version)) +
-      geom_col(show.legend = FALSE) +
-      geom_text(aes(label = scales::comma(n)), hjust = -0.2, size = 4, color = "#0f1f2e") +
-      coord_flip() +
-      scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-      labs(title = "FHIR Package Distribution by Version", 
-           x = "FHIR Version", 
-           y = "Package Count") +
-      theme_healthchain(base_size = 13)
+    # Get variable labels
+    var_labels <- c(
+      "version" = "FHIR Version",
+      "realm" = "Realm",
+      "status" = "Status",
+      "auth" = "Author"
+    )
     
-    return(p)
-  })
-  
-  output$plot_versions <- renderPlot({
-    plot_versions_reactive()
-  }, height = 500, width = "auto")
-  
-  # FIXED: Download handler with suspendWhenHidden
-  output$download_plot_versions <- downloadHandler(
-    filename = function() { 
-      paste0("fhir_versions_", Sys.Date(), ".png") 
-    },
-    content = function(file) {
-      # Get the plot
-      p <- plot_versions_reactive()
+    x_label <- var_labels[input$plot_x_var]
+    x_var <- input$plot_x_var
+    
+    # Clean data - remove NA and empty values
+    df_clean <- df %>%
+      filter(!is.na(.data[[x_var]]), .data[[x_var]] != "", .data[[x_var]] != "NA")
+    
+    req(nrow(df_clean) > 0)
+    
+    # Limit to top 15 values for clarity
+    top_values <- df_clean %>%
+      count(.data[[x_var]], sort = TRUE) %>%
+      slice_head(n = 15) %>%
+      pull(.data[[x_var]])
+    
+    df_plot <- df_clean %>%
+      filter(.data[[x_var]] %in% top_values)
+    
+    # Generate plot based on type
+    if (input$plot_type == "bar") {
+      # Simple bar chart
+      p <- df_plot %>%
+        count(.data[[x_var]], sort = TRUE) %>%
+        ggplot(aes(x = reorder(.data[[x_var]], n), y = n, fill = .data[[x_var]])) +
+        geom_col(show.legend = FALSE) +
+        geom_text(aes(label = scales::comma(n)), hjust = -0.2, size = 4, color = "#0f1f2e") +
+        coord_flip() +
+        scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+        labs(
+          title = paste("FHIR Package Distribution by", x_label),
+          subtitle = paste("Top 15", tolower(x_label), "values"),
+          x = x_label,
+          y = "Package Count"
+        ) +
+        theme_healthchain(base_size = 13)
       
-      # Try to add logo, if fails use plot without logo
-      p_final <- tryCatch({
-        if (file.exists(HC_LOGO_PATH)) {
-          add_logo_cowplot(p)
-        } else {
-          message("Logo file not found at: ", HC_LOGO_PATH)
-          p
-        }
-      }, error = function(e) {
-        message("Logo not added: ", e$message)
-        p
-      })
+    } else if (input$plot_type == "grouped") {
+      # Grouped bar chart
+      fill_var <- input$plot_fill_var
+      fill_label <- var_labels[fill_var]
       
-      # Save using png device directly
-      png(file, width = 12, height = 8, units = "in", res = 300, bg = "white")
-      print(p_final)
-      dev.off()
+      df_grouped <- df_plot %>%
+        filter(!is.na(.data[[fill_var]]), .data[[fill_var]] != "") %>%
+        count(.data[[x_var]], .data[[fill_var]], sort = TRUE)
+      
+      p <- df_grouped %>%
+        ggplot(aes(x = .data[[x_var]], y = n, fill = .data[[fill_var]])) +
+        geom_col(position = "dodge", width = 0.8) +
+        geom_text(
+          aes(label = scales::comma(n)),
+          position = position_dodge(width = 0.8),
+          vjust = -0.3, size = 3, color = "#0f1f2e"
+        ) +
+        scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+        labs(
+          title = paste("FHIR Package Distribution by", x_label, "and", fill_label),
+          x = x_label,
+          y = "Package Count",
+          fill = fill_label
+        ) +
+        theme_healthchain(base_size = 12) +
+        theme(
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "right"
+        )
+      
+    } else {
+      # Stacked bar chart
+      fill_var <- input$plot_fill_var
+      fill_label <- var_labels[fill_var]
+      
+      df_stacked <- df_plot %>%
+        filter(!is.na(.data[[fill_var]]), .data[[fill_var]] != "") %>%
+        count(.data[[x_var]], .data[[fill_var]], sort = TRUE)
+      
+      p <- df_stacked %>%
+        ggplot(aes(x = reorder(.data[[x_var]], n, sum), y = n, fill = .data[[fill_var]])) +
+        geom_col(position = "stack") +
+        coord_flip() +
+        scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+        labs(
+          title = paste("FHIR Package Distribution by", x_label, "and", fill_label),
+          x = x_label,
+          y = "Package Count",
+          fill = fill_label
+        ) +
+        theme_healthchain(base_size = 12) +
+        theme(legend.position = "right")
     }
-  )
-  
-  # Set suspendWhenHidden to FALSE
-  outputOptions(output, "download_plot_versions", suspendWhenHidden = FALSE)
-  
-  # ---- NEW: Overview - Grouped Bar Chart by Realm (TOP 8 REALMS) ---------------
-  plot_realm_facet_reactive <- reactive({
-    df <- filtered()
-    req(nrow(df) > 0)
-    
-    # Get top 8 realms by package count
-    top_realms <- df %>%
-      filter(!is.na(realm), realm != "", realm != "NA") %>%
-      count(realm, sort = TRUE) %>%
-      slice_head(n = 8) %>%
-      pull(realm)
-    
-    req(length(top_realms) > 0)
-    
-    # Prepare data - filter to top realms and get version distribution
-    df_realm <- df %>%
-      filter(realm %in% top_realms) %>%
-      count(version, realm, sort = TRUE) %>%
-      # Order realms by total count
-      mutate(realm = factor(realm, levels = top_realms))
-    
-    req(nrow(df_realm) > 0)
-    
-    # Create grouped bar chart
-    p <- df_realm %>%
-      ggplot(aes(x = realm, y = n, fill = version)) +
-      geom_col(position = "dodge", width = 0.8) +
-      geom_text(aes(label = scales::comma(n)), 
-                position = position_dodge(width = 0.8),
-                vjust = -0.3, size = 3, color = "#0f1f2e") +
-      scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-      labs(title = "FHIR Package Distribution by Realm and Version", 
-           subtitle = "Top 8 realms by total package count",
-           x = "Realm", 
-           y = "Package Count",
-           fill = "FHIR Version") +
-      theme_healthchain(base_size = 12) +
-      theme(
-        legend.position = "right",
-        legend.title = element_text(face = "bold"),
-        axis.text.x = element_text(angle = 0, hjust = 0.5, size = 11),
-        panel.grid.major.x = element_blank()
-      )
     
     return(p)
   })
   
-  output$plot_realm_facet <- renderPlot({
-    plot_realm_facet_reactive()
+  output$custom_plot <- renderPlot({
+    custom_plot_reactive()
   }, height = 550, width = "auto")
   
-  output$download_plot_realm_facet <- downloadHandler(
-    filename = function() { 
-      paste0("fhir_versions_by_realm_", Sys.Date(), ".png") 
+  # Flag to show download button after plot is generated
+  output$plot_generated <- reactive({
+    !is.null(input$generate_plot) && input$generate_plot > 0
+  })
+  outputOptions(output, "plot_generated", suspendWhenHidden = FALSE)
+  
+  output$download_custom_plot <- downloadHandler(
+    filename = function() {
+      paste0("fhir_custom_", input$plot_x_var, "_", Sys.Date(), ".png")
     },
     content = function(file) {
-      # Get the plot
-      p <- plot_realm_facet_reactive()
+      p <- custom_plot_reactive()
       
-      # Try to add logo, if fails use plot without logo
       p_final <- tryCatch({
         if (file.exists(HC_LOGO_PATH)) {
           add_logo_cowplot(p)
         } else {
-          message("Logo file not found at: ", HC_LOGO_PATH)
           p
         }
       }, error = function(e) {
-        message("Logo not added: ", e$message)
         p
       })
       
-      # Save using png device directly
-      png(file, width = 14, height = 9, units = "in", res = 300, bg = "white")
+      png(file, width = 12, height = 9, units = "in", res = 300, bg = "white")
       print(p_final)
       dev.off()
     }
   )
-  outputOptions(output, "download_plot_realm_facet", suspendWhenHidden = FALSE)
+  outputOptions(output, "download_custom_plot", suspendWhenHidden = FALSE)
   
-  # ---- Authors (NOT filtered - uses full dataset) -------------------------------
+  # ---- Authors (full dataset) ---------------------------------------------------
   plot_authors_reactive <- reactive({
-    df <- resources_tbl  # Use FULL dataset, not filtered()
+    df <- resources_tbl
     req(nrow(df) > 0)
     
     p <- df %>%
@@ -244,10 +207,8 @@ function(input, output, session) {
       paste0("top_authors_", Sys.Date(), ".png") 
     },
     content = function(file) {
-      # Get the plot
       p <- plot_authors_reactive()
       
-      # Try to add logo
       p_final <- tryCatch({
         if (file.exists(HC_LOGO_PATH)) {
           add_logo_cowplot(p)
@@ -255,11 +216,9 @@ function(input, output, session) {
           p
         }
       }, error = function(e) {
-        message("Logo not added: ", e$message)
         p
       })
       
-      # Save using png device directly
       png(file, width = 12, height = 8, units = "in", res = 300, bg = "white")
       print(p_final)
       dev.off()
@@ -268,7 +227,7 @@ function(input, output, session) {
   outputOptions(output, "download_plot_authors", suspendWhenHidden = FALSE)
   
   output$tbl_authors <- renderDT({
-    df <- resources_tbl  # Use FULL dataset
+    df <- resources_tbl
     req(nrow(df) > 0)
     
     df %>%
@@ -282,7 +241,7 @@ function(input, output, session) {
       )
   })
   
-  # ---- Evolution (NOT filtered - uses .rds data) --------------------------------
+  # ---- Evolution (uses .rds data) -----------------------------------------------
   plot_added_reactive <- reactive({
     dc <- delta_counts
     req(nrow(dc) > 0)
@@ -387,7 +346,7 @@ function(input, output, session) {
     }
   })
   
-  # ---- NEW: Resource Changes Tab ------------------------------------------------
+  # ---- Resource Changes Tab -----------------------------------------------------
   output$tbl_added_resources <- renderDT({
     dc <- delta_counts
     if (!nrow(dc)) {
@@ -434,10 +393,10 @@ function(input, output, session) {
     }
   })
   
-  # ---- Tables (Resources table uses filtered data, others use .rds) -------------
+  # ---- Tables -------------------------------------------------------------------
   output$tbl_resources <- renderDT({
     datatable(
-      filtered(), 
+      resources_tbl, 
       class = "stripe hover compact", 
       options = list(pageLength = 20, scrollX = TRUE, scrollY = "600px", scrollCollapse = TRUE),
       rownames = FALSE,
