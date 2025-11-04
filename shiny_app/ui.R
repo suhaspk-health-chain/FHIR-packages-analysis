@@ -41,6 +41,8 @@ navbarPage(
                       wellPanel(
                         style = "background:#f9fafb; border:1px solid #ddd;",
                         h4("Generate Custom Plot", style="color:#f26d21; margin-top:0;"),
+                        
+                        # First Row: Main Plot Controls
                         fluidRow(
                           column(2,
                                  selectInput(
@@ -131,6 +133,23 @@ navbarPage(
                                        icon = icon("chart-bar"),
                                        width = "100%"
                                      )
+                                 )
+                          )
+                        ),
+                        
+                        # Second Row: Realm Filter
+                        hr(style="margin:10px 0;"),
+                        fluidRow(
+                          column(12,
+                                 selectizeInput(
+                                   "realm_filter",
+                                   "Filter by Realm (optional):",
+                                   choices = NULL,
+                                   multiple = TRUE,
+                                   options = list(
+                                     placeholder = 'Select realms to filter (leave empty for all)',
+                                     plugins = list('remove_button')
+                                   )
                                  )
                           )
                         )

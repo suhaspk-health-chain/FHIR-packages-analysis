@@ -4,6 +4,34 @@
 
 function(input, output, session) {
   
+  # ---- Initialize realm filter choices dynamically ----
+  observe({
+    realm_choices <- resources_tbl %>%
+      filter(!is.na(realm), realm != "", realm != "NA") %>%
+      count(realm, sort = TRUE) %>%
+      pull(realm)
+    
+    updateSelectizeInput(
+      session, 
+      "realm_filter",
+      choices = realm_choices,
+      server = TRUE
+    )
+  })
+  
+  # ---- Create filtered dataset based on realm selection ----
+  filtered_data <- reactive({
+    df <- resources_tbl
+    
+    # Apply realm filter if user selected specific realms
+    if (!is.null(input$realm_filter) && length(input$realm_filter) > 0) {
+      df <- df %>%
+        filter(realm %in% input$realm_filter)
+    }
+    
+    return(df)
+  })
+  
   # ---- Meta info outputs --------------------------------------------------------
   output$meta_built_at <- renderText({
     if (!is.null(meta$built_at)) format(meta$built_at, "%Y-%m-%d %H:%M") else "n/a"
@@ -17,26 +45,31 @@ function(input, output, session) {
     meta$source_dirs$raw %||% "n/a"
   })
   
-  # ---- KPIs (full dataset) ------------------------------------------------------
+  # ---- KPIs (use filtered data) -------------------------------------------------
   output$kpi_rows <- renderText({
-    scales::comma(kpi_rows(resources_tbl))
+    scales::comma(nrow(filtered_data()))
   })
   
   output$kpi_packages <- renderText({
-    scales::comma(kpi_n_distinct(resources_tbl$package_text))
+    scales::comma(n_distinct(filtered_data()$package_text))
   })
   
   output$kpi_resources <- renderText({
-    scales::comma(kpi_n_distinct(resources_tbl$identity_text))
+    scales::comma(n_distinct(filtered_data()$identity_text))
   })
   
   output$kpi_authors <- renderText({
-    scales::comma(kpi_authors_nonempty(resources_tbl))
+    df <- filtered_data()
+    auth_count <- df %>% 
+      filter(!is.na(auth), auth != "") %>% 
+      pull(auth) %>% 
+      n_distinct()
+    scales::comma(auth_count)
   })
   
   # ---- Interactive Custom Plot Generation (ALL 7 PLOT TYPES) --------------------
   custom_plot_reactive <- eventReactive(input$generate_plot, {
-    df <- resources_tbl
+    df <- filtered_data()
     req(nrow(df) > 0)
     req(input$plot_x_var)
     req(input$plot_type)
@@ -53,7 +86,7 @@ function(input, output, session) {
     x_var <- input$plot_x_var
     top_n <- input$top_n %||% 15
     
-    # Clean data - remove NA and empty values
+    # Clean data
     df_clean <- df %>%
       filter(!is.na(!!sym(x_var)), !!sym(x_var) != "", !!sym(x_var) != "NA")
     
@@ -126,21 +159,18 @@ function(input, output, session) {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
       
-      # Get top 8 for fill variable
       top_y_values <- df_plot %>%
         filter(!is.na(!!sym(y_var)), !!sym(y_var) != "") %>%
         count(!!sym(y_var), sort = TRUE) %>%
         slice_head(n = 8) %>%
         pull(!!sym(y_var))
       
-      # Check if faceting is enabled
       use_facet <- !is.null(input$facet_var) && input$facet_var != "none"
       
       if (use_facet) {
         facet_var <- input$facet_var
         facet_label <- var_labels[facet_var]
         
-        # Get top 6 facet values
         top_facet_values <- df_plot %>%
           filter(!is.na(!!sym(facet_var)), !!sym(facet_var) != "") %>%
           count(!!sym(facet_var), sort = TRUE) %>%
@@ -185,7 +215,6 @@ function(input, output, session) {
           legend.title = element_text(face = "bold")
         )
       
-      # Add facet if enabled
       if (use_facet) {
         p <- p + 
           facet_wrap(as.formula(paste("~", facet_var)), scales = "free_y", ncol = 2) +
@@ -197,10 +226,8 @@ function(input, output, session) {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
       
-      # Check if faceting is enabled
       use_facet <- !is.null(input$facet_var) && input$facet_var != "none"
       
-      # Get top 8 categories for stacking
       top_y_values <- df_plot %>%
         filter(!is.na(!!sym(y_var)), !!sym(y_var) != "") %>%
         count(!!sym(y_var), sort = TRUE) %>%
@@ -211,7 +238,6 @@ function(input, output, session) {
         facet_var <- input$facet_var
         facet_label <- var_labels[facet_var]
         
-        # Get top 6 facet values
         top_facet_values <- df_plot %>%
           filter(!is.na(!!sym(facet_var)), !!sym(facet_var) != "") %>%
           count(!!sym(facet_var), sort = TRUE) %>%
@@ -288,7 +314,6 @@ function(input, output, session) {
           panel.grid.major.y = element_blank()
         )
       
-      # Add facet if enabled
       if (use_facet) {
         p <- p + 
           facet_wrap(as.formula(paste("~", facet_var)), scales = "free", ncol = 2) +
@@ -303,7 +328,6 @@ function(input, output, session) {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
       
-      # Create aggregated data
       df_scatter <- df %>%
         filter(
           !is.na(!!sym(x_var)), !!sym(x_var) != "",
@@ -392,7 +416,6 @@ function(input, output, session) {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
       
-      # Get top N for both variables
       top_x <- df %>%
         filter(!is.na(!!sym(x_var)), !!sym(x_var) != "") %>%
         count(!!sym(x_var), sort = TRUE) %>%
@@ -405,7 +428,6 @@ function(input, output, session) {
         slice_head(n = min(top_n, 15)) %>%
         pull(!!sym(y_var))
       
-      # Create cross-tabulation
       heatmap_data <- df %>%
         filter(
           !!sym(x_var) %in% top_x,
@@ -586,19 +608,13 @@ function(input, output, session) {
     return(p)
   })
   
-  output$plot_authors <- renderPlot({
-    plot_authors_reactive()
-  }, height = 500, width = "auto")
+  output$plot_authors <- renderPlot({ plot_authors_reactive() }, height = 500, width = "auto")
   
   output$download_plot_authors <- downloadHandler(
-    filename = function() { 
-      paste0("top_authors_", Sys.Date(), ".png") 
-    },
+    filename = function() { paste0("top_authors_", Sys.Date(), ".png") },
     content = function(file) {
       p <- plot_authors_reactive()
-      p_final <- tryCatch({
-        if (file.exists(HC_LOGO_PATH)) add_logo_cowplot(p) else p
-      }, error = function(e) p)
+      p_final <- tryCatch({ if (file.exists(HC_LOGO_PATH)) add_logo_cowplot(p) else p }, error = function(e) p)
       png(file, width = 12, height = 8, units = "in", res = 300, bg = "white")
       print(p_final)
       dev.off()
