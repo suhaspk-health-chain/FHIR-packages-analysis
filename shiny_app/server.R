@@ -23,7 +23,6 @@ function(input, output, session) {
   filtered_data <- reactive({
     df <- resources_tbl
     
-    # Apply realm filter if user selected specific realms
     if (!is.null(input$realm_filter) && length(input$realm_filter) > 0) {
       df <- df %>%
         filter(realm %in% input$realm_filter)
@@ -32,7 +31,7 @@ function(input, output, session) {
     return(df)
   })
   
-  # ---- Meta info outputs --------------------------------------------------------
+  # ---- Meta info outputs ----
   output$meta_built_at <- renderText({
     if (!is.null(meta$built_at)) format(meta$built_at, "%Y-%m-%d %H:%M") else "n/a"
   })
@@ -45,7 +44,7 @@ function(input, output, session) {
     meta$source_dirs$raw %||% "n/a"
   })
   
-  # ---- KPIs (use filtered data) -------------------------------------------------
+  # ---- KPIs (use filtered data) ----
   output$kpi_rows <- renderText({
     scales::comma(nrow(filtered_data()))
   })
