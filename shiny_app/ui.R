@@ -3,7 +3,7 @@
 # ==============================================================
 
 navbarPage(
-  title = "FHIR Packages Dashboard",
+  title = "FHIR Packages EDA Dashboard",
   theme = bslib::bs_theme(bootswatch = "cosmo"),
   
   # ---- TAB 1: Overview ----
@@ -16,7 +16,7 @@ navbarPage(
                column(12,
                       wellPanel(
                         style = "background:#ffffff; border:2px solid #f26d21; padding:20px;",
-                        h2("Welcome to the FHIR Packages Dashboard", style="color:#f26d21; text-align:center;"),
+                        h2("Welcome to the FHIR Packages EDA Dashboard", style="color:#f26d21; text-align:center;"),
                         hr(style="border-color:#f26d21;"),
                         h4("Introduction"),
                         p(style="font-size:16px; line-height:1.6;",
@@ -231,6 +231,36 @@ navbarPage(
                style="text-align:center; color:#666; margin-bottom:30px;"),
              hr(),
              
+             # Version Selection Controls
+             fluidRow(
+               column(12,
+                      wellPanel(
+                        style = "background:#f9fafb; border:2px solid #ddd; padding:15px;",
+                        h4("Filter Transitions", style="color:#f26d21; margin-top:0;"),
+                        fluidRow(
+                          column(6,
+                                 selectizeInput(
+                                   "version_filter",
+                                   "Select Version (optional):",
+                                   choices = NULL,
+                                   multiple = TRUE,
+                                   options = list(
+                                     placeholder = 'Leave empty to show all transitions',
+                                     plugins = list('remove_button')
+                                   )
+                                 )
+                          ),
+                          column(6,
+                                 p(strong("Info:"), " Select one or more versions to filter transitions.", 
+                                   style="margin-top:25px; color:#666; font-size:14px;")
+                          )
+                        )
+                      )
+               )
+             ),
+             
+             br(),
+             
              # Charts Section
              fluidRow(
                column(6, 
@@ -279,6 +309,7 @@ navbarPage(
              )
            )
   ),
+  
   
   # ---- TAB 3: Data Tables ----
   tabPanel("Data Tables",

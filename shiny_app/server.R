@@ -560,7 +560,7 @@ function(input, output, session) {
       p <- custom_plot_reactive()
       
       p_final <- tryCatch({
-        if (file.exists(HC_LOGO_PATH)) {
+        if (file.exists(HC_LOGO_PATH) && HC_LOGO_PATH != "") {
           add_logo_cowplot(p)
         } else {
           p
@@ -582,16 +582,141 @@ function(input, output, session) {
   )
   outputOptions(output, "download_custom_plot", suspendWhenHidden = FALSE)
   
-  # ---- Evolution Plots ----
-  plot_added_reactive <- reactive({
+  # ---- Evolution Tab: Initialize version filter choices ----
+  observe({
     dc <- delta_counts
     req(nrow(dc) > 0)
-    ggplot(dc, aes(x = reorder(transition, added), y = added, fill = transition)) +
+    
+    # Extract all unique versions from transitions
+    all_versions <- unique(unlist(strsplit(
+      gsub(" → ", ",", dc$transition), 
+      ","
+    )))
+    all_versions <- trimws(all_versions)
+    all_versions <- sort(unique(all_versions))
+    
+    updateSelectizeInput(
+      session,
+      "version_filter",
+      choices = all_versions,
+      server = TRUE
+    )
+  })
+  
+  # ---- Evolution Tab: Filtered data with smart transition merging ----
+  filtered_delta_counts <- reactive({
+    dc <- delta_counts
+    req(nrow(dc) > 0)
+    
+    # If no version selected, return all transitions
+    if (is.null(input$version_filter) || length(input$version_filter) == 0) {
+      return(dc)
+    }
+    
+    selected_versions <- input$version_filter
+    
+    # Step 1: Extract all versions from original transitions
+    all_transitions <- dc %>%
+      mutate(
+        from_version = str_trim(str_extract(transition, "^[^ ]+")),
+        to_version = str_trim(str_extract(transition, "[^ ]+$"))
+      )
+    
+    # Step 2: Get all unique versions in order
+    all_versions_ordered <- unique(c(
+      all_transitions$from_version,
+      all_transitions$to_version
+    ))
+    
+    # Step 3: Keep only selected versions, preserving order
+    kept_versions <- intersect(all_versions_ordered, selected_versions)
+    
+    # Step 4: Create new sequential transitions
+    if (length(kept_versions) < 2) {
+      return(tibble())
+    }
+    
+    new_transitions <- tibble()
+    
+    for (i in 1:(length(kept_versions) - 1)) {
+      from_v <- kept_versions[i]
+      to_v <- kept_versions[i + 1]
+      
+      new_transition <- paste(from_v, "→", to_v)
+      
+      # Step 5: Find all original transitions that bridge these versions
+      # E.g., R4 → R5 should include R4 → R4B, R4B → R5
+      
+      # Get all intermediate versions between from_v and to_v
+      from_idx <- which(all_versions_ordered == from_v)
+      to_idx <- which(all_versions_ordered == to_v)
+      
+      intermediate_versions <- all_versions_ordered[from_idx:to_idx]
+      
+      # Find all rows that transition within this range
+      bridging_rows <- all_transitions %>%
+        filter(
+          from_version %in% intermediate_versions,
+          to_version %in% intermediate_versions
+        )
+      
+      if (nrow(bridging_rows) > 0) {
+        # Aggregate the data
+        added_total <- sum(bridging_rows$added, na.rm = TRUE)
+        removed_total <- sum(bridging_rows$removed, na.rm = TRUE)
+        
+        # Combine resource names
+        added_resources_combined <- bridging_rows %>%
+          filter(!is.na(added_resources), added_resources != "") %>%
+          pull(added_resources) %>%
+          paste(collapse = ", ")
+        
+        removed_resources_combined <- bridging_rows %>%
+          filter(!is.na(removed_resources), removed_resources != "") %>%
+          pull(removed_resources) %>%
+          paste(collapse = ", ")
+        
+        new_transitions <- new_transitions %>%
+          bind_rows(tibble(
+            transition = new_transition,
+            added_resources = if (added_resources_combined == "") NA_character_ else added_resources_combined,
+            removed_resources = if (removed_resources_combined == "") NA_character_ else removed_resources_combined,
+            added = added_total,
+            removed = removed_total
+          ))
+      }
+    }
+    
+    return(new_transitions)
+  })
+  
+  # ---- Evolution Plot: Resources Added (with version filter) ----
+  plot_added_reactive <- reactive({
+    dc <- filtered_delta_counts()
+    
+    if (nrow(dc) == 0) {
+      return(
+        ggplot() +
+          annotate("text", x = 0.5, y = 0.5, label = "No transitions match selected versions",
+                   size = 5, color = "#666") +
+          theme_void()
+      )
+    }
+    
+    # Maintain original transition order
+    dc <- dc %>%
+      mutate(transition = factor(transition, levels = transition))
+    
+    ggplot(dc, aes(x = transition, y = added, fill = transition)) +
       geom_col(show.legend = FALSE) +
       coord_flip() +
       geom_text(aes(label = scales::comma(added)), hjust = -0.2, size = 4, color = "#0f1f2e") +
       scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-      labs(title = "Resources Added per Transition", x = "Version Transition", y = "Resources Added") +
+      labs(
+        title = "Resources Added per Transition",
+        x = "Version Transition",
+        y = "Resources Added"
+      ) +
       theme_healthchain(base_size = 12)
   })
   
@@ -601,7 +726,9 @@ function(input, output, session) {
     filename = function() { paste0("resources_added_", Sys.Date(), ".png") },
     content = function(file) {
       p <- plot_added_reactive()
-      p_final <- tryCatch({ if (file.exists(HC_LOGO_PATH)) add_logo_cowplot(p) else p }, error = function(e) p)
+      p_final <- tryCatch({ 
+        if (file.exists(HC_LOGO_PATH) && HC_LOGO_PATH != "") add_logo_cowplot(p) else p 
+      }, error = function(e) p)
       png(file, width = 10, height = 7, units = "in", res = 300, bg = "white")
       print(p_final)
       dev.off()
@@ -609,15 +736,33 @@ function(input, output, session) {
   )
   outputOptions(output, "download_plot_added", suspendWhenHidden = FALSE)
   
+  # ---- Evolution Plot: Resources Removed (with version filter) ----
   plot_removed_reactive <- reactive({
-    dc <- delta_counts
-    req(nrow(dc) > 0)
-    ggplot(dc, aes(x = reorder(transition, removed), y = removed, fill = transition)) +
+    dc <- filtered_delta_counts()
+    
+    if (nrow(dc) == 0) {
+      return(
+        ggplot() +
+          annotate("text", x = 0.5, y = 0.5, label = "No transitions match selected versions",
+                   size = 5, color = "#666") +
+          theme_void()
+      )
+    }
+    
+    # Maintain original transition order
+    dc <- dc %>%
+      mutate(transition = factor(transition, levels = transition))
+    
+    ggplot(dc, aes(x = transition, y = removed, fill = transition)) +
       geom_col(show.legend = FALSE) +
       coord_flip() +
       geom_text(aes(label = scales::comma(removed)), hjust = -0.2, size = 4, color = "#0f1f2e") +
       scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-      labs(title = "Resources Removed per Transition", x = "Version Transition", y = "Resources Removed") +
+      labs(
+        title = "Resources Removed per Transition",
+        x = "Version Transition",
+        y = "Resources Removed"
+      ) +
       theme_healthchain(base_size = 12)
   })
   
@@ -627,7 +772,9 @@ function(input, output, session) {
     filename = function() { paste0("resources_removed_", Sys.Date(), ".png") },
     content = function(file) {
       p <- plot_removed_reactive()
-      p_final <- tryCatch({ if (file.exists(HC_LOGO_PATH)) add_logo_cowplot(p) else p }, error = function(e) p)
+      p_final <- tryCatch({ 
+        if (file.exists(HC_LOGO_PATH) && HC_LOGO_PATH != "") add_logo_cowplot(p) else p 
+      }, error = function(e) p)
       png(file, width = 10, height = 7, units = "in", res = 300, bg = "white")
       print(p_final)
       dev.off()
@@ -635,21 +782,36 @@ function(input, output, session) {
   )
   outputOptions(output, "download_plot_removed", suspendWhenHidden = FALSE)
   
+  # ---- Evolution Table: Transition Summary (with version filter) ----
   output$tbl_transitions <- renderDT({
-    dc <- delta_counts
-    if (!nrow(dc)) {
-      datatable(data.frame(message = "No transition data available"), options = list(dom='t'))
+    dc <- filtered_delta_counts()
+    
+    if (nrow(dc) == 0) {
+      datatable(
+        data.frame(Message = "No transitions match selected versions"), 
+        options = list(dom='t'),
+        rownames = FALSE
+      )
     } else {
-      datatable(dc, class = "stripe hover compact", options = list(pageLength = 10, scrollX = TRUE), rownames = FALSE)
+      datatable(
+        dc, 
+        class = "stripe hover compact", 
+        options = list(pageLength = 10, scrollX = TRUE),
+        rownames = FALSE
+      )
     }
   })
   
-  # ---- Evolution Detailed Resource Changes Table ----
+  # ---- Evolution Table: Detailed Resource Changes (with version filter) ----
   output$tbl_detailed_resource_changes <- renderDT({
-    dc <- delta_counts
+    dc <- filtered_delta_counts()
     
-    if (!nrow(dc)) {
-      datatable(data.frame(Message = "No data available"), options = list(dom='t'), rownames = FALSE)
+    if (nrow(dc) == 0) {
+      datatable(
+        data.frame(Message = "No transitions match selected versions"),
+        options = list(dom='t'),
+        rownames = FALSE
+      )
     } else {
       # Process data using tidyr
       added_data <- NULL
@@ -682,7 +844,11 @@ function(input, output, session) {
       detailed_df <- bind_rows(added_data, removed_data)
       
       if (is.null(detailed_df) || nrow(detailed_df) == 0) {
-        datatable(data.frame(Message = "No resource changes found"), options = list(dom='t'), rownames = FALSE)
+        datatable(
+          data.frame(Message = "No resource changes found"),
+          options = list(dom='t'),
+          rownames = FALSE
+        )
       } else {
         datatable(
           detailed_df,
