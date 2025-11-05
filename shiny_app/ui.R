@@ -11,11 +11,11 @@ footer_component <- div(
              "Built with ", icon("heart", style="color:#f26d21;"), " using R Shiny | ",
              "November 2025 | ",
              "Follow: ",
-             tags$a(href="https://www.linkedin.com/in/suhas-pk/", target="_blank", 
+             tags$a(href="https://www.linkedin.com/in/YOUR_LINKEDIN_USERNAME", target="_blank", 
                     icon("linkedin", style="color:#0A66C2; margin:0 8px;"), "LinkedIn"),
              tags$a(href="https://YOUR_QUARTO_SITE.com", target="_blank", 
                     icon("globe", style="color:#2a5eb4; margin:0 8px;"), "Quarto"),
-             tags$a(href="https://github.com/suhaspk-health-chain/FHIR-packages-analysis", target="_blank", 
+             tags$a(href="https://github.com/YOUR_GITHUB_USERNAME/FHIR-packages-analysis", target="_blank", 
                     icon("github", style="color:#333; margin:0 8px;"), "GitHub"),
              style="font-size:14px; color:#666; margin:0;"
            )
@@ -26,6 +26,104 @@ footer_component <- div(
 navbarPage(
   title = "FHIR Packages Dashboard",
   theme = bslib::bs_theme(bootswatch = "cosmo"),
+  
+  # Add responsive CSS for navbar
+  tags$head(
+    tags$style(HTML("
+      /* Navbar improvements for responsiveness */
+      .navbar {
+        flex-wrap: wrap;
+      }
+      
+      .navbar-brand {
+        padding-right: 15px !important;
+        font-weight: bold;
+        color: #0c223f !important;
+      }
+      
+      .navbar-nav {
+        flex-direction: row;
+        align-items: center;
+      }
+      
+      .navbar-nav .nav-item {
+        padding: 0 5px;
+        white-space: nowrap;
+      }
+      
+      .navbar-nav .nav-link {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 14px;
+      }
+      
+      /* Responsive adjustments */
+      @media (max-width: 992px) {
+        .navbar-nav .nav-link {
+          font-size: 13px;
+          padding: 0.5rem 0.5rem !important;
+        }
+        
+        .navbar-brand {
+          font-size: 18px;
+          padding-right: 10px !important;
+        }
+      }
+      
+      @media (max-width: 768px) {
+        .navbar-brand {
+          font-size: 16px;
+        }
+        
+        .navbar-nav .nav-link {
+          font-size: 12px;
+          padding: 0.4rem 0.4rem !important;
+        }
+      }
+      
+      /* Collapse button improvements */
+      .navbar-toggler {
+        padding: 0.25rem 0.5rem;
+        border: 1px solid rgba(0,0,0,.1);
+      }
+      
+      .navbar-toggler:focus {
+        outline: none;
+        box-shadow: none;
+      }
+      
+      /* Tab text improvements */
+      .nav-link {
+        color: #0c223f !important;
+        font-weight: 500;
+        transition: color 0.3s ease;
+      }
+      
+      .nav-link:hover {
+        color: #f26d21 !important;
+        background-color: rgba(242, 109, 33, 0.1);
+        border-radius: 4px;
+      }
+      
+      .nav-link.active {
+        color: #f26d21 !important;
+        font-weight: bold;
+        border-bottom: 3px solid #f26d21;
+      }
+      
+      /* Fix navbar collapse to the right */
+      .navbar-collapse {
+        order: 3;
+        flex-basis: 100%;
+      }
+      
+      @media (min-width: 768px) {
+        .navbar-collapse {
+          order: 2;
+          flex-basis: auto;
+        }
+      }
+    "))
+  ),
   
   # ---- TAB 1: Overview ----
   tabPanel("Overview",
@@ -439,9 +537,9 @@ navbarPage(
                         
                         h3("Author Information", style="color:#0c223f;"),
                         p(style="font-size:16px; line-height:1.8;",
-                          strong("Developed by:"), " Suhas. P. K", br(),
-                          strong("Organization:"), " Health Chain", br(),
-                          strong("Contact:"), "suhas.pk@health-chain.io", br(),
+                          strong("Developed by:"), " [Your Name]", br(),
+                          strong("Organization:"), " [Your Organization/Institution]", br(),
+                          strong("Contact:"), " [Your Email]", br(),
                           strong("Date:"), " November 2025", br(),
                           strong("Version:"), " 1.0.0"
                         ),
