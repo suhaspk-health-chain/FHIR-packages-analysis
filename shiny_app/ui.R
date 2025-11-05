@@ -342,5 +342,263 @@ navbarPage(
                )
              )
            )
+  ),
+  
+  # ---- TAB 4: About ----
+  tabPanel("About",
+           fluidPage(
+             br(),
+             
+             # About the Project Section
+             fluidRow(
+               column(12,
+                      wellPanel(
+                        style = "background:#ffffff; border:2px solid #f26d21; padding:25px;",
+                        h2(icon("info-circle"), " About This Project", style="color:#f26d21; margin-top:0;"),
+                        hr(style="border-color:#f26d21;"),
+                        
+                        h3("Project Overview", style="color:#0c223f;"),
+                        p(style="font-size:16px; line-height:1.8;",
+                          "The FHIR Packages Dashboard is an interactive data exploration tool designed to analyze and visualize 
+              the distribution and evolution of Fast Healthcare Interoperability Resources (FHIR) packages across 
+              different versions, implementation guides, and global healthcare realms."
+                        ),
+                        
+                        br(),
+                        
+                        h3("Key Features", style="color:#0c223f;"),
+                        tags$ul(
+                          style="font-size:16px; line-height:1.8;",
+                          tags$li(strong("Interactive Visualization:"), " Generate custom plots with 7 different chart types including bar charts, heatmaps, and correlation matrices."),
+                          tags$li(strong("Version Analysis:"), " Track resource evolution across FHIR versions (DSTU2, STU3, R4, R4B, R5, R6)."),
+                          tags$li(strong("Global Coverage:"), " Analyze packages by realm (country/region) and implementing organization."),
+                          tags$li(strong("Dynamic Filtering:"), " Filter data by FHIR version and realm for focused analysis."),
+                          tags$li(strong("Export Capabilities:"), " Download high-quality plots and export data tables in multiple formats.")
+                        ),
+                        
+                        br(),
+                        
+                        h3("Technology Stack", style="color:#0c223f;"),
+                        fluidRow(
+                          column(4,
+                                 tags$ul(
+                                   style="font-size:15px;",
+                                   tags$li(icon("r-project"), strong(" R & Shiny")),
+                                   tags$li(icon("chart-line"), strong(" ggplot2")),
+                                   tags$li(icon("table"), strong(" DT (DataTables)"))
+                                 )
+                          ),
+                          column(4,
+                                 tags$ul(
+                                   style="font-size:15px;",
+                                   tags$li(icon("code"), strong(" tidyverse")),
+                                   tags$li(icon("database"), strong(" JSON/CSV")),
+                                   tags$li(icon("palette"), strong(" RColorBrewer"))
+                                 )
+                          ),
+                          column(4,
+                                 tags$ul(
+                                   style="font-size:15px;",
+                                   tags$li(icon("bootstrap"), strong(" Bootstrap")),
+                                   tags$li(icon("fire"), strong(" FHIR Standard")),
+                                   tags$li(icon("hospital"), strong(" HL7 International"))
+                                 )
+                          )
+                        ),
+                        
+                        br(),
+                        
+                        h3("Author Information", style="color:#0c223f;"),
+                        p(style="font-size:16px; line-height:1.8;",
+                          strong("Developed by:"), " Suhas. P. K", br(),
+                          strong("Organization:"), " Health Chain LLC", br(),
+                          strong("Contact:"), "suhas.pk@health-chain.io", br(),
+                          strong("Date:"), " November 2025", br(),
+                          strong("Version:"), " 1.0.0"
+                        )
+                      )
+               )
+             ),
+             
+             br(),
+             
+             # Data Sources Section
+             fluidRow(
+               column(12,
+                      wellPanel(
+                        style = "background:#f9fafb; border:2px solid #0c223f; padding:25px;",
+                        h2(icon("database"), " Data Sources & Resources", style="color:#0c223f; margin-top:0;"),
+                        hr(style="border-color:#0c223f;"),
+                        
+                        h3("Primary Data Source", style="color:#f26d21;"),
+                        div(
+                          style="background:#ffffff; padding:15px; border-left:4px solid #f26d21; margin-bottom:20px;",
+                          h4(tags$a(
+                            href="https://packages2.fhir.org/xig", 
+                            target="_blank",
+                            icon("external-link-alt"), " FHIR Implementation Guide Statistics",
+                            style="color:#f26d21;"
+                          )),
+                          p(style="font-size:15px; margin-bottom:0;",
+                            "Official FHIR package registry containing comprehensive statistics on 75,000+ resources 
+                across all published implementation guides. This is the primary source for package distribution, 
+                version information, and resource metadata."
+                          )
+                        ),
+                        
+                        br(),
+                        
+                        h3("FHIR Resource Specifications", style="color:#f26d21;"),
+                        p(style="font-size:15px; margin-bottom:15px;",
+                          "Official FHIR resource list documentation for each version standard:"
+                        ),
+                        
+                        fluidRow(
+                          column(6,
+                                 div(
+                                   style="background:#ffffff; padding:12px; margin-bottom:10px; border-radius:5px;",
+                                   h5(
+                                     tags$a(
+                                       href="https://hl7.org/fhir/DSTU2/resourcelist.html",
+                                       target="_blank",
+                                       icon("file-alt"), " FHIR DSTU2 (R2)",
+                                       style="color:#0c223f;"
+                                     ),
+                                     style="margin:0;"
+                                   ),
+                                   p("Release 2 - Draft Standard for Trial Use 2", style="font-size:13px; color:#666; margin:5px 0 0 0;")
+                                 ),
+                                 
+                                 div(
+                                   style="background:#ffffff; padding:12px; margin-bottom:10px; border-radius:5px;",
+                                   h5(
+                                     tags$a(
+                                       href="https://hl7.org/fhir/STU3/resourcelist.html",
+                                       target="_blank",
+                                       icon("file-alt"), " FHIR STU3 (R3)",
+                                       style="color:#0c223f;"
+                                     ),
+                                     style="margin:0;"
+                                   ),
+                                   p("Release 3 - Standard for Trial Use 3", style="font-size:13px; color:#666; margin:5px 0 0 0;")
+                                 ),
+                                 
+                                 div(
+                                   style="background:#ffffff; padding:12px; margin-bottom:10px; border-radius:5px;",
+                                   h5(
+                                     tags$a(
+                                       href="https://hl7.org/fhir/R4/resourcelist.html",
+                                       target="_blank",
+                                       icon("file-alt"), " FHIR R4",
+                                       style="color:#0c223f;"
+                                     ),
+                                     style="margin:0;"
+                                   ),
+                                   p("Release 4 - First Normative Release", style="font-size:13px; color:#666; margin:5px 0 0 0;")
+                                 )
+                          ),
+                          
+                          column(6,
+                                 div(
+                                   style="background:#ffffff; padding:12px; margin-bottom:10px; border-radius:5px;",
+                                   h5(
+                                     tags$a(
+                                       href="https://hl7.org/fhir/R4B/resourcelist.html",
+                                       target="_blank",
+                                       icon("file-alt"), " FHIR R4B",
+                                       style="color:#0c223f;"
+                                     ),
+                                     style="margin:0;"
+                                   ),
+                                   p("Release 4B - Bridge to R5", style="font-size:13px; color:#666; margin:5px 0 0 0;")
+                                 ),
+                                 
+                                 div(
+                                   style="background:#ffffff; padding:12px; margin-bottom:10px; border-radius:5px;",
+                                   h5(
+                                     tags$a(
+                                       href="https://hl7.org/fhir/R5/resourcelist.html",
+                                       target="_blank",
+                                       icon("file-alt"), " FHIR R5",
+                                       style="color:#0c223f;"
+                                     ),
+                                     style="margin:0;"
+                                   ),
+                                   p("Release 5 - Latest Published Version", style="font-size:13px; color:#666; margin:5px 0 0 0;")
+                                 ),
+                                 
+                                 div(
+                                   style="background:#ffffff; padding:12px; margin-bottom:10px; border-radius:5px;",
+                                   h5(
+                                     tags$a(
+                                       href="https://build.fhir.org/resourcelist.html",
+                                       target="_blank",
+                                       icon("file-alt"), " FHIR R6 (Build)",
+                                       style="color:#0c223f;"
+                                     ),
+                                     style="margin:0;"
+                                   ),
+                                   p("Release 6 - Current Build/Development Version", style="font-size:13px; color:#666; margin:5px 0 0 0;")
+                                 )
+                          )
+                        ),
+                        
+                        br(),
+                        
+                        h3("Additional Resources", style="color:#f26d21;"),
+                        fluidRow(
+                          column(6,
+                                 tags$ul(
+                                   style="font-size:15px; line-height:2;",
+                                   tags$li(tags$a(href="https://www.hl7.org/fhir/", target="_blank", "HL7 FHIR Homepage", style="color:#0c223f;")),
+                                   tags$li(tags$a(href="https://www.hl7.org/", target="_blank", "HL7 International", style="color:#0c223f;")),
+                                   tags$li(tags$a(href="https://fhir.org/", target="_blank", "FHIR Community", style="color:#0c223f;"))
+                                 )
+                          ),
+                          column(6,
+                                 tags$ul(
+                                   style="font-size:15px; line-height:2;",
+                                   tags$li(tags$a(href="https://confluence.hl7.org/", target="_blank", "HL7 Confluence", style="color:#0c223f;")),
+                                   tags$li(tags$a(href="https://chat.fhir.org/", target="_blank", "FHIR Chat (Zulip)", style="color:#0c223f;")),
+                                   tags$li(tags$a(href="https://github.com/FHIR", target="_blank", "FHIR on GitHub", style="color:#0c223f;"))
+                                 )
+                          )
+                        ),
+                        
+                        br(),
+                        
+                        div(
+                          style="background:#e8f4f8; padding:15px; border-radius:5px; border-left:4px solid #0c223f;",
+                          p(
+                            icon("info-circle"), 
+                            strong(" Acknowledgments:"), 
+                            " This project utilizes publicly available FHIR package data and resource specifications 
+                provided by HL7 International. Special thanks to the FHIR community for their ongoing 
+                contributions to healthcare interoperability standards.",
+                            style="font-size:14px; margin:0; color:#0c223f;"
+                          )
+                        )
+                      )
+               )
+             ),
+             
+             br(),
+             
+             # Footer
+             fluidRow(
+               column(12,
+                      div(
+                        style="text-align:center; padding:20px; color:#666;",
+                        p(
+                          "Built with ", icon("heart", style="color:#f26d21;"), " using R Shiny | ",
+                          "Last Updated: November 2025 | ",
+                          "Data Version: ", textOutput("meta_built_at", inline = TRUE),
+                          style="font-size:14px; margin:0;"
+                        )
+                      )
+               )
+             )
+           )
   )
+  
 )
