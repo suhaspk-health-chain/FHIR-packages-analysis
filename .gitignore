@@ -52,6 +52,7 @@ rsconnect/
 data/interim/
 data/processed/
 outputs/tables/
+shiny_app/data
 
 !figs/README.md  # (keep placeholder if desired)
 

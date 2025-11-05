@@ -66,14 +66,13 @@ function(input, output, session) {
     scales::comma(auth_count)
   })
   
-  # ---- Interactive Custom Plot Generation (ALL 7 PLOT TYPES) --------------------
+  # ---- Custom Plot Generation (ALL 7 PLOT TYPES) ----
   custom_plot_reactive <- eventReactive(input$generate_plot, {
     df <- filtered_data()
     req(nrow(df) > 0)
     req(input$plot_x_var)
     req(input$plot_type)
     
-    # Get variable labels
     var_labels <- c(
       "version" = "FHIR Version",
       "realm" = "Realm",
@@ -85,13 +84,11 @@ function(input, output, session) {
     x_var <- input$plot_x_var
     top_n <- input$top_n %||% 15
     
-    # Clean data
     df_clean <- df %>%
       filter(!is.na(!!sym(x_var)), !!sym(x_var) != "", !!sym(x_var) != "NA")
     
     req(nrow(df_clean) > 0)
     
-    # Limit to top N values
     top_values <- df_clean %>%
       count(!!sym(x_var), sort = TRUE) %>%
       slice_head(n = top_n) %>%
@@ -100,7 +97,7 @@ function(input, output, session) {
     df_plot <- df_clean %>%
       filter(!!sym(x_var) %in% top_values)
     
-    # ============ PLOT TYPE 1: SIMPLE BAR CHART ============
+    # ============ BAR CHART ============
     if (input$plot_type == "bar") {
       p <- df_plot %>%
         count(!!sym(x_var), sort = TRUE) %>%
@@ -117,7 +114,7 @@ function(input, output, session) {
         ) +
         theme_healthchain(base_size = 13)
       
-      # ============ PLOT TYPE 2: PIE CHART ============
+      # ============ PIE CHART ============
     } else if (input$plot_type == "pie") {
       pie_data <- df_plot %>%
         count(!!sym(x_var), sort = TRUE) %>%
@@ -153,7 +150,7 @@ function(input, output, session) {
           legend.position = "right"
         )
       
-      # ============ PLOT TYPE 3: GROUPED BAR CHART WITH FACETS ============
+      # ============ GROUPED BARS WITH FACETS ============
     } else if (input$plot_type == "grouped") {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
@@ -220,7 +217,7 @@ function(input, output, session) {
           labs(subtitle = paste("Faceted by", facet_label, "(top 6 values)"))
       }
       
-      # ============ PLOT TYPE 4: STACKED BAR CHART WITH FACETS ============
+      # ============ STACKED BARS WITH FACETS ============
     } else if (input$plot_type == "stacked") {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
@@ -322,7 +319,7 @@ function(input, output, session) {
           labs(subtitle = paste("Grouped by", tolower(y_label), ". Labels shown for segments ≥5%"))
       }
       
-      # ============ PLOT TYPE 5: SCATTER PLOT WITH TREND LINE ============
+      # ============ SCATTER PLOT ============
     } else if (input$plot_type == "scatter") {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
@@ -410,7 +407,7 @@ function(input, output, session) {
           )
       }
       
-      # ============ PLOT TYPE 6: CATEGORICAL HEATMAP ============
+      # ============ HEATMAP ============
     } else if (input$plot_type == "heatmap") {
       y_var <- input$plot_y_var
       y_label <- var_labels[y_var]
@@ -461,7 +458,7 @@ function(input, output, session) {
         ) +
         coord_fixed(ratio = 1)
       
-      # ============ PLOT TYPE 7: CORRELATION MATRIX ============
+      # ============ CORRELATION MATRIX ============
     } else if (input$plot_type == "correlation") {
       vars <- c("version", "realm", "status", "auth")
       var_labels_full <- c("version" = "FHIR Version", "realm" = "Realm", 
@@ -548,7 +545,7 @@ function(input, output, session) {
   
   output$custom_plot <- renderPlot({
     custom_plot_reactive()
-  }, height = 650, width = "auto")
+  }, height = 800, width = "auto")
   
   output$plot_generated <- reactive({
     !is.null(input$generate_plot) && input$generate_plot > 0
@@ -585,53 +582,7 @@ function(input, output, session) {
   )
   outputOptions(output, "download_custom_plot", suspendWhenHidden = FALSE)
   
-  # ---- Authors ----
-  plot_authors_reactive <- reactive({
-    df <- resources_tbl
-    req(nrow(df) > 0)
-    
-    p <- df %>%
-      filter(!is.na(auth), auth != "") %>%
-      count(auth, sort = TRUE) %>%
-      slice_head(n = 15) %>%
-      ggplot(aes(x = reorder(auth, n), y = n, fill = auth)) +
-      geom_col(show.legend = FALSE) + 
-      coord_flip() +
-      geom_text(aes(label = scales::comma(n)), hjust = -0.2, size = 4, color = "#0f1f2e") +
-      scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-      labs(title = "Top 15 Authors by Package Count", 
-           x = "Author", 
-           y = "Package Count") +
-      theme_healthchain(base_size = 13)
-    
-    return(p)
-  })
-  
-  output$plot_authors <- renderPlot({ plot_authors_reactive() }, height = 500, width = "auto")
-  
-  output$download_plot_authors <- downloadHandler(
-    filename = function() { paste0("top_authors_", Sys.Date(), ".png") },
-    content = function(file) {
-      p <- plot_authors_reactive()
-      p_final <- tryCatch({ if (file.exists(HC_LOGO_PATH)) add_logo_cowplot(p) else p }, error = function(e) p)
-      png(file, width = 12, height = 8, units = "in", res = 300, bg = "white")
-      print(p_final)
-      dev.off()
-    }
-  )
-  outputOptions(output, "download_plot_authors", suspendWhenHidden = FALSE)
-  
-  output$tbl_authors <- renderDT({
-    resources_tbl %>%
-      filter(!is.na(auth), auth != "") %>%
-      count(auth, sort = TRUE) %>%
-      rename(Author = auth, `Package Count` = n) %>%
-      datatable(class = "stripe hover compact", 
-                options = list(pageLength = 15, scrollY = "400px", scrollCollapse = TRUE),
-                rownames = FALSE)
-  })
-  
-  # ---- Evolution ----
+  # ---- Evolution Plots ----
   plot_added_reactive <- reactive({
     dc <- delta_counts
     req(nrow(dc) > 0)
@@ -693,34 +644,83 @@ function(input, output, session) {
     }
   })
   
-  # ---- Resource Changes ----
-  output$tbl_added_resources <- renderDT({
+  # ---- Evolution Detailed Resource Changes Table ----
+  output$tbl_detailed_resource_changes <- renderDT({
     dc <- delta_counts
+    
     if (!nrow(dc)) {
-      datatable(data.frame(message = "No data available"), options = list(dom='t'))
-    } else if ("added_resources" %in% names(dc)) {
-      added_list <- dc %>% select(transition, added_resources) %>% filter(!is.na(added_resources) & added_resources != "")
-      datatable(added_list, class = "stripe hover compact", 
-                options = list(pageLength = 15, scrollY = "500px", scrollCollapse = TRUE), rownames = FALSE)
+      datatable(data.frame(Message = "No data available"), options = list(dom='t'), rownames = FALSE)
     } else {
-      datatable(data.frame(message = "Added resources column not found in data"), options = list(dom='t'))
+      # Process data using tidyr
+      added_data <- NULL
+      removed_data <- NULL
+      
+      if ("added_resources" %in% names(dc)) {
+        added_data <- dc %>%
+          select(transition, added_resources) %>%
+          filter(!is.na(added_resources), added_resources != "") %>%
+          separate_rows(added_resources, sep = ",\\s*") %>%
+          mutate(
+            `Change Type` = "Added",
+            `Resource Name` = trimws(added_resources)
+          ) %>%
+          select(Transition = transition, `Change Type`, `Resource Name`)
+      }
+      
+      if ("removed_resources" %in% names(dc)) {
+        removed_data <- dc %>%
+          select(transition, removed_resources) %>%
+          filter(!is.na(removed_resources), removed_resources != "") %>%
+          separate_rows(removed_resources, sep = ",\\s*") %>%
+          mutate(
+            `Change Type` = "Removed",
+            `Resource Name` = trimws(removed_resources)
+          ) %>%
+          select(Transition = transition, `Change Type`, `Resource Name`)
+      }
+      
+      detailed_df <- bind_rows(added_data, removed_data)
+      
+      if (is.null(detailed_df) || nrow(detailed_df) == 0) {
+        datatable(data.frame(Message = "No resource changes found"), options = list(dom='t'), rownames = FALSE)
+      } else {
+        datatable(
+          detailed_df,
+          class = "stripe hover compact",
+          filter = 'top',
+          options = list(
+            pageLength = 25,
+            scrollY = "600px",
+            scrollCollapse = TRUE,
+            dom = 'Bfrtip',
+            buttons = c('copy', 'csv', 'excel'),
+            order = list(list(0, 'asc'), list(1, 'asc'))
+          ),
+          extensions = 'Buttons',
+          rownames = FALSE
+        ) %>%
+          formatStyle(
+            'Change Type',
+            target = 'row',
+            backgroundColor = styleEqual(
+              c('Added', 'Removed'),
+              c('#d4edda', '#f8d7da')
+            )
+          ) %>%
+          formatStyle(
+            'Change Type',
+            color = styleEqual(
+              c('Added', 'Removed'),
+              c('#155724', '#721c24')
+            ),
+            fontWeight = 'bold'
+          )
+      }
     }
   })
   
-  output$tbl_removed_resources <- renderDT({
-    dc <- delta_counts
-    if (!nrow(dc)) {
-      datatable(data.frame(message = "No data available"), options = list(dom='t'))
-    } else if ("removed_resources" %in% names(dc)) {
-      removed_list <- dc %>% select(transition, removed_resources) %>% filter(!is.na(removed_resources) & removed_resources != "")
-      datatable(removed_list, class = "stripe hover compact", 
-                options = list(pageLength = 15, scrollY = "500px", scrollCollapse = TRUE), rownames = FALSE)
-    } else {
-      datatable(data.frame(message = "Removed resources column not found in data"), options = list(dom='t'))
-    }
-  })
   
-  # ---- Tables ----
+  # ---- Data Tables ----
   output$tbl_resources <- renderDT({
     datatable(resources_tbl, class = "stripe hover compact", 
               options = list(pageLength = 20, scrollX = TRUE, scrollY = "600px", scrollCollapse = TRUE),

@@ -6,7 +6,7 @@ navbarPage(
   title = "FHIR Packages Dashboard",
   theme = bslib::bs_theme(bootswatch = "cosmo"),
   
-  # ---- TAB 1: Overview (RESTRUCTURED) ----
+  # ---- TAB 1: Overview ----
   tabPanel("Overview",
            fluidPage(
              br(),
@@ -104,7 +104,6 @@ navbarPage(
                         h4("Plot Configuration", style="color:#f26d21; margin-top:0; text-align:center;"),
                         hr(),
                         
-                        # Plot Type
                         selectInput(
                           "plot_type",
                           "Select Plot Type:",
@@ -120,7 +119,6 @@ navbarPage(
                           selected = "bar"
                         ),
                         
-                        # X-Axis Variable
                         selectInput(
                           "plot_x_var",
                           "X-Axis Variable:",
@@ -133,7 +131,6 @@ navbarPage(
                           selected = "version"
                         ),
                         
-                        # Y-Axis Variable (conditional)
                         conditionalPanel(
                           condition = "input.plot_type != 'bar' && input.plot_type != 'pie' && input.plot_type != 'correlation'",
                           selectInput(
@@ -149,7 +146,6 @@ navbarPage(
                           )
                         ),
                         
-                        # Facet Variable (conditional)
                         conditionalPanel(
                           condition = "input.plot_type == 'grouped' || input.plot_type == 'stacked'",
                           selectInput(
@@ -166,7 +162,6 @@ navbarPage(
                           )
                         ),
                         
-                        # Trend Line (conditional)
                         conditionalPanel(
                           condition = "input.plot_type == 'scatter'",
                           checkboxInput(
@@ -176,7 +171,6 @@ navbarPage(
                           )
                         ),
                         
-                        # Top N Values
                         numericInput(
                           "top_n",
                           "Top N Values:",
@@ -188,7 +182,6 @@ navbarPage(
                         
                         hr(),
                         
-                        # Realm Filter
                         selectizeInput(
                           "realm_filter",
                           "Filter by Realm (optional):",
@@ -202,7 +195,6 @@ navbarPage(
                         
                         hr(),
                         
-                        # Generate Button
                         actionButton(
                           "generate_plot",
                           "Generate Plot",
@@ -238,6 +230,8 @@ navbarPage(
              p("Track how FHIR resources have been added and removed across version transitions.",
                style="text-align:center; color:#666; margin-bottom:30px;"),
              hr(),
+             
+             # Charts Section
              fluidRow(
                column(6, 
                       h4("Resources Added per Transition"),
@@ -250,38 +244,43 @@ navbarPage(
                       plotOutput("plot_removed", height = "450px")
                )
              ),
+             
              br(),
+             hr(style="border-top: 2px solid #f26d21; margin:30px 0;"),
+             
+             # Transition Summary Table
              fluidRow(
                column(12, 
-                      h4("Transition Details"),
+                      h4("Transition Summary", style="color:#f26d21;"),
+                      p("Overview of resource changes across version transitions.", style="color:#666;"),
                       DTOutput("tbl_transitions")
                )
-             )
-           )
-  ),
-  
-  # ---- TAB 3: Resource Changes ----
-  tabPanel("Resource Changes",
-           fluidPage(
+             ),
+             
              br(),
-             h3("FHIR Resources Additions and Deletions by Name", style="color:#f26d21; text-align:center;"),
-             p("Detailed list of resources added and removed across version transitions.",
-               style="text-align:center; color:#666; margin-bottom:30px;"),
-             hr(),
+             hr(style="border-top: 2px solid #f26d21; margin:30px 0;"),
+             
+             # Detailed Resource Changes Table
              fluidRow(
-               column(6,
-                      h4("Added Resources", style="color:#28a745;"),
-                      DTOutput("tbl_added_resources")
-               ),
-               column(6,
-                      h4("Removed Resources", style="color:#dc3545;"),
-                      DTOutput("tbl_removed_resources")
+               column(12,
+                      h3("Detailed Resource Changes by Name", style="color:#f26d21; text-align:center;"),
+                      p("Complete list of all resources added and removed for each version transition.",
+                        style="text-align:center; color:#666; margin-bottom:30px;")
+               )
+             ),
+             
+             fluidRow(
+               column(12,
+                      wellPanel(
+                        style="background:#f9fafb; padding:20px;",
+                        DTOutput("tbl_detailed_resource_changes")
+                      )
                )
              )
            )
   ),
   
-  # ---- TAB 4: Tables ----
+  # ---- TAB 3: Data Tables ----
   tabPanel("Data Tables",
            fluidPage(
              br(),
