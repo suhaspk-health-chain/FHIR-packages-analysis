@@ -1,5 +1,5 @@
 # ==============================================================
-# ui.R — FHIR Packages Dashboard UI
+# ui.R — FHIR Packages Dashboard UI (Complete Final Version)
 # ==============================================================
 
 # Create footer component (will be added to each page)
@@ -15,7 +15,7 @@ footer_component <- div(
                     icon("linkedin", style="color:#0A66C2; margin:0 8px;"), "LinkedIn"),
              tags$a(href="https://YOUR_QUARTO_SITE.com", target="_blank", 
                     icon("globe", style="color:#2a5eb4; margin:0 8px;"), "Quarto"),
-             tags$a(href="https://github.com/YOUR_GITHUB_USERNAME/FHIR-packages-analysis", target="_blank", 
+             tags$a(href="https://github.com/suhaspk-health-chain/FHIR-packages-analysis", target="_blank", 
                     icon("github", style="color:#333; margin:0 8px;"), "GitHub"),
              style="font-size:14px; color:#666; margin:0;"
            )
@@ -565,11 +565,147 @@ navbarPage(
                           ),
                           br(),
                           tags$a(
-                            href="https://github.com/YOUR_GITHUB_USERNAME/FHIR-packages-analysis",
+                            href="https://github.com/suhaspk-health-chain/FHIR-packages-analysis",
                             target="_blank",
                             icon("github", style="font-size:24px; color:#333; margin-right:10px;"),
                             strong("GitHub Repository"),
                             style="text-decoration:none; color:#0c223f;"
+                          )
+                        ),
+                        
+                        br(),
+                        
+                        h3("GitHub Contributions", style="color:#0c223f;"),
+                        p(style="font-size:16px; line-height:1.6; color:#666;",
+                          "This is an open-source project! Your contributions are welcome and appreciated. 
+              Whether you've found a bug, have a feature request, or want to contribute code, 
+              we'd love to hear from you."
+                        ),
+                        
+                        br(),
+                        
+                        # GitHub Contribution Cards
+                        fluidRow(
+                          # Issues Card
+                          column(6,
+                                 div(
+                                   style="background: linear-gradient(135deg, #f6f8fa 0%, #ffffff 100%); 
+                         border: 2px solid #0969da; border-radius: 10px; padding: 25px; 
+                         min-height: 220px; transition: all 0.3s ease;
+                         box-shadow: 0 2px 8px rgba(9,105,218,0.1);",
+                                   onmouseover="this.style.boxShadow='0 4px 16px rgba(9,105,218,0.2)'; this.style.transform='translateY(-2px)';",
+                                   onmouseout="this.style.boxShadow='0 2px 8px rgba(9,105,218,0.1)'; this.style.transform='translateY(0)';",
+                                   
+                                   div(
+                                     style="text-align:center; margin-bottom:15px;",
+                                     icon("exclamation-circle", style="font-size:48px; color:#d1242f;")
+                                   ),
+                                   
+                                   h4("Report an Issue", style="text-align:center; color:#0c223f; margin-bottom:15px;"),
+                                   
+                                   p(style="font-size:14px; text-align:center; color:#666; margin-bottom:20px;",
+                                     "Found a bug or have a suggestion? Open an issue on GitHub and help us improve!"
+                                   ),
+                                   
+                                   div(
+                                     style="text-align:center;",
+                                     tags$a(
+                                       href="https://github.com/suhaspk-health-chain/FHIR-packages-analysis/issues",
+                                       target="_blank",
+                                       class="btn btn-danger btn-lg",
+                                       style="width:80%; font-size:16px; font-weight:bold;",
+                                       icon("github"), " Open Issue"
+                                     )
+                                   )
+                                 )
+                          ),
+                          
+                          # Pull Request Card
+                          column(6,
+                                 div(
+                                   style="background: linear-gradient(135deg, #f6f8fa 0%, #ffffff 100%); 
+                         border: 2px solid #0969da; border-radius: 10px; padding: 25px; 
+                         min-height: 220px; transition: all 0.3s ease;
+                         box-shadow: 0 2px 8px rgba(9,105,218,0.1);",
+                                   onmouseover="this.style.boxShadow='0 4px 16px rgba(9,105,218,0.2)'; this.style.transform='translateY(-2px)';",
+                                   onmouseout="this.style.boxShadow='0 2px 8px rgba(9,105,218,0.1)'; this.style.transform='translateY(0)';",
+                                   
+                                   div(
+                                     style="text-align:center; margin-bottom:15px;",
+                                     icon("code-branch", style="font-size:48px; color:#1f883d;")
+                                   ),
+                                   
+                                   h4("Submit Pull Request", style="text-align:center; color:#0c223f; margin-bottom:15px;"),
+                                   
+                                   p(style="font-size:14px; text-align:center; color:#666; margin-bottom:20px;",
+                                     "Have improvements to contribute? Fork the repo and submit a pull request!"
+                                   ),
+                                   
+                                   div(
+                                     style="text-align:center;",
+                                     tags$a(
+                                       href="https://github.com/suhaspk-health-chain/FHIR-packages-analysis/pulls",
+                                       target="_blank",
+                                       class="btn btn-success btn-lg",
+                                       style="width:80%; font-size:16px; font-weight:bold;",
+                                       icon("code-branch"), " Create PR"
+                                     )
+                                   )
+                                 )
+                          )
+                        ),
+                        
+                        br(),
+                        
+                        # GitHub Repository Info
+                        div(
+                          style="background:#f6f8fa; padding:20px; border-radius:8px; border-left:4px solid #0969da; margin-top:20px;",
+                          fluidRow(
+                            column(2,
+                                   div(style="text-align:center; padding-top:10px;",
+                                       icon("github", style="font-size:48px; color:#333;")
+                                   )
+                            ),
+                            column(10,
+                                   h5(
+                                     tags$a(
+                                       href="https://github.com/suhaspk-health-chain/FHIR-packages-analysis",
+                                       target="_blank",
+                                       "suhaspk-health-chain/FHIR-packages-analysis",
+                                       style="color:#0969da; text-decoration:none; font-weight:bold;"
+                                     ),
+                                     style="margin-top:0; margin-bottom:10px;"
+                                   ),
+                                   p(style="font-size:14px; color:#666; margin-bottom:10px;",
+                                     "View the complete source code, documentation, and project roadmap on GitHub."
+                                   ),
+                                   tags$a(
+                                     href="https://github.com/suhaspk-health-chain/FHIR-packages-analysis",
+                                     target="_blank",
+                                     icon("external-link-alt"), " View Repository",
+                                     style="color:#0969da; font-size:14px; font-weight:500;"
+                                   )
+                            )
+                          )
+                        ),
+                        
+                        br(),
+                        
+                        # Contribution Guidelines
+                        div(
+                          style="background:#fff3cd; padding:15px; border-radius:6px; border:1px solid #ffc107;",
+                          p(
+                            icon("info-circle", style="color:#856404; margin-right:8px;"),
+                            strong("New to contributing?"),
+                            " Check out our ",
+                            tags$a(
+                              href="https://github.com/suhaspk-health-chain/FHIR-packages-analysis/blob/main/CONTRIBUTING.md",
+                              target="_blank",
+                              "Contributing Guidelines",
+                              style="color:#0969da;"
+                            ),
+                            " to get started!",
+                            style="font-size:14px; color:#856404; margin:0;"
                           )
                         )
                       )

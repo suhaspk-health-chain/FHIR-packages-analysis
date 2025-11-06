@@ -12,11 +12,9 @@ website:
     type: info
     position: below-navbar
 
-  image: images/health-chain-logo.png
 
   navbar:
     pinned: true
-    logo: images/health-chain-full-logo.png
     left:
       - href: index.qmd
         text: Home
