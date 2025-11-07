@@ -1,207 +1,298 @@
 # ==============================================================
-# 11_us_realm_profiles_registry.R
-# US Realm FHIR IGs → download from packages.fhir.org
-# Extract profiled base resources, save CSVs + heatmap
+# 11_US_realm_resources.R - FINAL CORRECTED VERSION
+# Extract from Official HL7 Implementation Guide Registry
 # ==============================================================
 
 suppressPackageStartupMessages({
-  library(httr2)
   library(jsonlite)
   library(dplyr)
-  library(tidyr)
-  library(purrr)
-  library(ggplot2)
   library(stringr)
 })
 
-# ---------------- paths / theme ----------------
-try({ if (file.exists("scripts/01_config.R")) source("scripts/01_config.R") }, silent = TRUE)
-if (!exists("PROC_DIR")) PROC_DIR <- file.path(getwd(), "data", "processed")
-if (!exists("FIG_DIR"))  FIG_DIR  <- file.path(getwd(), "figures")
-dir.create(PROC_DIR, showWarnings = FALSE, recursive = TRUE)
-dir.create(FIG_DIR,  showWarnings = FALSE, recursive = TRUE)
+# ---- Load config -------------------------------------------------------------
+source("scripts/01_config.R")
 
-apply_theme <- function(p, base_size = 14) {
-  if (exists("theme_healthchain")) p + theme_healthchain(base_size) else
-    p + theme_minimal(base_size = base_size)
-}
+# ---- Step 1: Fetch Official HL7 IG Registry from GitHub ----------------------
+message("Fetching official HL7 Implementation Guide registry...")
 
-# ---------------- config ----------------
-HL7_US_ROOT <- "https://hl7.org/fhir/us"
-
-US_IGS <- c(
-  "core",           # US Core
-  "qicore",         # QI-Core
-  "carin-bb",       # CARIN Blue Button
-  "davinci-pdex",   # Da Vinci PDex
-  "davinci-pas",    # Da Vinci PAS
-  "davinci-dtr",    # Da Vinci DTR
-  "davinci-crd"     # Da Vinci CRD
+IG_REGISTRY_URLS <- c(
+  "https://raw.githubusercontent.com/FHIR/ig-registry/master/fhir-ig-list.json",
+  "https://build.fhir.org/ig-registry.json"
 )
 
-# ---------------- helpers ----------------
-`%||%` <- function(a, b) if (is.null(a)) b else a
+ig_registry <- NULL
 
-safe_req <- function(u, timeout_sec = 60) {
-  request(u) |>
-    req_user_agent("HC-FHIR-EDA/1.0 (R; contact: you@example.com)") |>
-    req_timeout(timeout_sec)
-}
-
-fetch_json <- function(u) {
-  resp <- safe_req(u) |> req_perform()
-  fromJSON(resp_body_string(resp), simplifyVector = TRUE)
-}
-
-# Read package-list.json and return (packageId, currentVersion)
-get_pkg_meta <- function(slug) {
-  url <- sprintf("%s/%s/package-list.json", HL7_US_ROOT, slug)
-  pl <- fetch_json(url)
+for (url in IG_REGISTRY_URLS) {
+  message("Trying: ", url)
   
-  pkg_id <- pl[["package-id"]] %||% pl[["packageId"]] %||% NA_character_
-  cur_row <- if (!is.null(pl$list)) pl$list[pl$list$current %in% TRUE, , drop = FALSE] else NULL
-  if (is.null(cur_row) || nrow(cur_row) == 0) {
-    # If none marked current, take the first entry as a fallback
-    if (!is.null(pl$list) && nrow(pl$list) > 0) cur_row <- pl$list[1, , drop = FALSE]
-  }
-  version <- cur_row$version[[1]] %||% pl[["version"]] %||% NA_character_
-  tibble(slug = slug, packageId = pkg_id, version = version)
-}
-
-# Download npm package tgz from the registry
-download_package_tgz <- function(packageId, version) {
-  # packages.fhir.org serves the npm tarball directly
-  url <- sprintf("https://packages.fhir.org/%s/%s", packageId, version)
-  td <- tempfile("igpkg_"); dir.create(td)
-  tgz <- file.path(td, "package.tgz")
-  resp <- safe_req(url) |> req_perform()
-  resp_body_file(resp, tgz)
-  list(tgz = tgz, exdir = td)
-}
-
-# Extract StructureDefinition resource profiles from a package.tgz
-extract_profiles <- function(tgz, exdir) {
-  utils::untar(tgz, exdir = exdir)
-  sdefs <- list.files(file.path(exdir, "package"), pattern = "^StructureDefinition-.*\\.json$", full.names = TRUE)
-  if (length(sdefs) == 0) return(tibble(profile_url = character(), base_resource = character()))
-  
-  map_dfr(sdefs, function(fp) {
-    j <- tryCatch(fromJSON(fp, simplifyVector = TRUE), error = function(e) NULL)
-    if (is.null(j)) return(NULL)
-    kind  <- j$kind %||% NA_character_
-    deriv <- j$derivation %||% NA_character_
-    btype <- j$type %||% NA_character_
-    url   <- j$url %||% NA_character_
+  tryCatch({
+    resp_text <- readLines(url, n = -1, warn = FALSE)
+    resp_json <- paste(resp_text, collapse = "\n")
+    ig_registry <- fromJSON(resp_json, simplifyVector = FALSE)
     
-    if (!is.na(kind) && kind == "resource" &&
-        !is.na(deriv) && deriv == "constraint" &&
-        !is.na(btype) && nzchar(btype)) {
-      tibble(profile_url = url, base_resource = btype)
-    } else NULL
+    message("✅ Successfully loaded from: ", url)
+    break
+    
+  }, error = function(e) {
+    message("  ❌ Failed: ", e$message)
   })
 }
 
-# ---------------- main ----------------
-message("==> Resolving package IDs + current versions...")
-pkg_meta <- map_dfr(US_IGS, get_pkg_meta)
+if (is.null(ig_registry)) {
+  stop("❌ Could not fetch IG registry from any source")
+}
 
-# Log table for fetch results/errors
-fetch_log <- tibble(slug = character(), packageId = character(), version = character(),
-                    ok = logical(), note = character())
+# ---- Step 2: Extract guides from registry structure --------------------------
+message("\nProcessing registry structure...")
 
-us_ig_profiles <- map_dfr(seq_len(nrow(pkg_meta)), function(i) {
-  row <- pkg_meta[i, ]
-  slug <- row$slug
-  pkg  <- row$packageId
-  ver  <- row$version
-  message(sprintf("US IG: %-14s | packageId=%s | version=%s", slug, pkg, ver))
-  
-  if (is.na(pkg) || is.na(ver) || !nzchar(pkg) || !nzchar(ver)) {
-    assign("fetch_log", bind_rows(fetch_log, tibble(slug = slug, packageId = pkg, version = ver, ok = FALSE, note = "Missing packageId/version")), envir = .GlobalEnv)
-    return(tibble(ig = slug, profile_url = character(), base_resource = character()))
-  }
-  
-  profs <- tryCatch({
-    dl <- download_package_tgz(pkg, ver)
-    extract_profiles(dl$tgz, dl$exdir)
+if ("guides" %in% names(ig_registry)) {
+  ig_list <- ig_registry$guides
+  message("  Found 'guides' array")
+} else {
+  ig_list <- ig_registry
+}
+
+message("✅ Found ", length(ig_list), " implementation guides")
+
+# ---- Step 3: Parse each guide manually (FLATTEN ALL DATA) -------------------
+message("\nExtracting realm and version information...")
+
+parse_guide <- function(guide) {
+  tryCatch({
+    # Get FHIR version from first edition - FLATTEN
+    fhir_ver <- NA_character_
+    if (!is.null(guide$editions) && length(guide$editions) > 0) {
+      first_edition <- guide$editions[[1]]
+      if (is.list(first_edition)) {
+        fv_raw <- first_edition$`fhir-version`
+        if (!is.null(fv_raw)) {
+          # Flatten to character
+          if (is.list(fv_raw)) {
+            fhir_ver <- paste(unlist(fv_raw), collapse = "; ")
+          } else {
+            fhir_ver <- as.character(fv_raw[1])
+          }
+        }
+      }
+    }
+    
+    # Extract realm from country - FLATTEN
+    realm_code <- tolower(as.character((guide$country %||% "uv")[1]))
+    realm <- case_when(
+      realm_code == "us" ~ "US",
+      realm_code == "au" ~ "AU",
+      realm_code == "nz" ~ "NZ",
+      realm_code == "ca" ~ "CA",
+      realm_code == "gb" ~ "UK",
+      realm_code == "nl" ~ "NL",
+      realm_code == "de" ~ "DE",
+      realm_code == "no" ~ "NO",
+      realm_code == "fr" ~ "FR",
+      realm_code == "it" ~ "IT",
+      realm_code == "at" ~ "AT",
+      realm_code == "be" ~ "BE",
+      realm_code == "ch" ~ "CH",
+      realm_code == "dk" ~ "DK",
+      realm_code == "se" ~ "SE",
+      realm_code == "fi" ~ "FI",
+      realm_code == "eu" ~ "EU",
+      realm_code == "uv" ~ "International",
+      TRUE ~ str_to_upper(realm_code)
+    )
+    
+    data.frame(
+      package_id = as.character((guide$`npm-name` %||% guide$name %||% NA_character_)[1]),
+      realm = realm,
+      fhir_version = fhir_ver,
+      name = as.character((guide$name %||% NA_character_)[1]),
+      country = realm_code,
+      category = as.character((guide$category %||% NA_character_)[1]),
+      description = as.character((guide$description %||% NA_character_)[1]),
+      stringsAsFactors = FALSE
+    )
   }, error = function(e) {
-    # Fallback attempt: try <path>/package.tgz from package-list (rarely needed)
-    note <- paste("Registry download failed:", conditionMessage(e))
-    assign("fetch_log", bind_rows(fetch_log, tibble(slug = slug, packageId = pkg, version = ver, ok = FALSE, note = note)), envir = .GlobalEnv)
-    return(NULL)
+    data.frame(
+      package_id = NA_character_,
+      realm = NA_character_,
+      fhir_version = NA_character_,
+      name = NA_character_,
+      country = NA_character_,
+      category = NA_character_,
+      description = NA_character_,
+      stringsAsFactors = FALSE
+    )
   })
+}
+
+# Parse all guides
+ig_parsed <- lapply(ig_list, parse_guide)
+
+# Combine into single data frame - THIS FLATTENS EVERYTHING
+ig_with_realm <- do.call(rbind, ig_parsed) %>%
+  as_tibble() %>%
+  filter(!is.na(package_id), package_id != "") %>%
+  mutate(
+    package_id = as.character(package_id),
+    realm = as.character(realm),
+    fhir_version = as.character(fhir_version),
+    name = as.character(name),
+    country = as.character(country),
+    category = as.character(category),
+    description = as.character(description)
+  )
+
+message("✅ Processed ", nrow(ig_with_realm), " guides with realm information")
+
+# ---- Step 4: Display Summary -----------------------------------------------
+cat("\n")
+cat("═══════════════════════════════════════════════════════════════════════\n")
+cat("          FHIR IMPLEMENTATION GUIDE REGISTRY ANALYSIS SUMMARY          \n")
+cat("═══════════════════════════════════════════════════════════════════════\n\n")
+
+cat(sprintf("Total Implementation Guides: %d\n", nrow(ig_with_realm)))
+
+cat("\n📊 Distribution by Realm:\n")
+cat("─────────────────────────────────────────────────────────────────────\n")
+
+realm_summary <- ig_with_realm %>%
+  count(realm, sort = TRUE)
+
+print(realm_summary, n = 30)
+
+# ---- Step 5: US Analysis -------------------------------------------------------
+us_guides <- ig_with_realm %>%
+  filter(realm == "US")
+
+cat("\n📊 US Implementation Guides:\n")
+cat("─────────────────────────────────────────────────────────────────────\n")
+cat(sprintf("Total US Guides: %d (%.1f%% of total)\n", 
+            nrow(us_guides), 
+            100 * nrow(us_guides) / nrow(ig_with_realm)))
+
+if (nrow(us_guides) > 0) {
+  us_by_version <- us_guides %>%
+    count(fhir_version, sort = TRUE) %>%
+    filter(!is.na(fhir_version), fhir_version != "NA")
   
-  if (is.null(profs) || nrow(profs) == 0) {
-    assign("fetch_log", bind_rows(fetch_log, tibble(slug = slug, packageId = pkg, version = ver, ok = FALSE, note = "No StructureDefinitions found")), envir = .GlobalEnv)
-    return(tibble(ig = slug, profile_url = character(), base_resource = character()))
+  if (nrow(us_by_version) > 0) {
+    cat("\nUS Guides by FHIR Version:\n")
+    print(us_by_version)
   } else {
-    assign("fetch_log", bind_rows(fetch_log, tibble(slug = slug, packageId = pkg, version = ver, ok = TRUE, note = "OK")), envir = .GlobalEnv)
-    mutate(profs, ig = slug, .before = 1)
+    cat("\n⚠️ FHIR version information not available for US guides\n")
   }
+  
+  cat("\n📋 Sample US Implementation Guides (top 20):\n")
+  cat("─────────────────────────────────────────────────────────────────────\n")
+  print(
+    us_guides %>% 
+      select(name, package_id, fhir_version) %>%
+      head(20), 
+    n = 20
+  )
+}
+
+# ---- Step 6: Version Analysis -------------------------------------------------
+cat("\n📊 Implementation Guides by FHIR Version:\n")
+cat("─────────────────────────────────────────────────────────────────────\n")
+
+by_version <- ig_with_realm %>%
+  filter(!is.na(fhir_version), fhir_version != "NA") %>%
+  count(fhir_version, sort = TRUE)
+
+if (nrow(by_version) > 0) {
+  print(by_version)
+}
+
+# ---- Step 7: International Analysis -----------------------------------------
+international_guides <- ig_with_realm %>%
+  filter(realm == "International")
+
+cat("\n📊 International (UV) Implementation Guides:\n")
+cat("─────────────────────────────────────────────────────────────────────\n")
+cat(sprintf("Total International Guides: %d\n", nrow(international_guides)))
+
+if (nrow(international_guides) > 0) {
+  print(
+    international_guides %>%
+      select(name, package_id, fhir_version) %>%
+      head(15),
+    n = 20
+  )
+}
+
+# ---- Step 8: Save Results (now with proper flattened data) ----------------------------
+message("\nSaving results to CSV files...")
+
+tryCatch({
+  all_file <- file.path(PROC_DIR, "fhir_ig_all_official.csv")
+  write.csv(ig_with_realm, all_file, row.names = FALSE)
+  message("✅ ", all_file)
+}, error = function(e) {
+  message("❌ Error saving all_file: ", e$message)
 })
 
-# Save fetch log so you can inspect failures
-write.csv(fetch_log, file.path(PROC_DIR, "usrealm_fetch_log.csv"), row.names = FALSE)
+tryCatch({
+  us_file <- file.path(PROC_DIR, "fhir_ig_us_official.csv")
+  write.csv(us_guides, us_file, row.names = FALSE)
+  message("✅ ", us_file)
+}, error = function(e) {
+  message("❌ Error saving us_file: ", e$message)
+})
 
-# ---------------- clean + presence matrix ----------------
-us_ig_profiles <- us_ig_profiles |>
-  filter(!is.na(base_resource), nzchar(base_resource)) |>
-  distinct(ig, base_resource, profile_url)
+tryCatch({
+  realm_file <- file.path(PROC_DIR, "fhir_ig_realms_summary.csv")
+  write.csv(realm_summary, realm_file, row.names = FALSE)
+  message("✅ ", realm_file)
+}, error = function(e) {
+  message("❌ Error saving realm_file: ", e$message)
+})
 
-if (nrow(us_ig_profiles) == 0) {
-  message("⚠ No profiles extracted. Check ", file.path(PROC_DIR, "usrealm_fetch_log.csv"))
-} else {
-  message("Extracted profiles: ", nrow(us_ig_profiles))
-}
-
-us_presence_matrix <- us_ig_profiles |>
-  mutate(present = 1L) |>
-  distinct(ig, base_resource, .keep_all = TRUE) |>
-  pivot_wider(names_from = ig, values_from = present, values_fill = 0L) |>
-  arrange(base_resource) |>
-  mutate(across(-base_resource, ~ as.integer(suppressWarnings(as.numeric(.)))))
-
-us_counts_by_ig <- us_presence_matrix |>
-  pivot_longer(-base_resource, names_to = "ig", values_to = "present") |>
-  mutate(present = as.integer(suppressWarnings(as.numeric(present)))) |>
-  filter(present == 1L) |>
-  count(ig, name = "n_profiled_resources") |>
-  arrange(desc(n_profiled_resources))
-
-# ---------------- save ----------------
-write.csv(us_ig_profiles,     file.path(PROC_DIR, "usrealm_profiles_long.csv"), row.names = FALSE)
-write.csv(us_presence_matrix, file.path(PROC_DIR, "usrealm_resource_presence_matrix_by_ig.csv"), row.names = FALSE)
-write.csv(us_counts_by_ig,    file.path(PROC_DIR, "usrealm_profiled_resource_counts_by_ig.csv"), row.names = FALSE)
-
-# ---------------- plot ----------------
-if (nrow(us_ig_profiles) > 0) {
-  us_heat_long <- us_presence_matrix |>
-    pivot_longer(-base_resource, names_to = "ig", values_to = "present") |>
-    mutate(present = as.integer(suppressWarnings(as.numeric(present))))
+tryCatch({
+  version_file <- file.path(PROC_DIR, "fhir_ig_by_version.csv")
+  by_version_realm <- ig_with_realm %>%
+    filter(!is.na(fhir_version), fhir_version != "NA") %>%
+    count(fhir_version, realm, sort = TRUE)
   
-  order_by_presence_us <- us_heat_long |>
-    group_by(base_resource) |>
-    summarise(k = sum(present, na.rm = TRUE), .groups = "drop") |>
-    arrange(desc(k), base_resource) |>
-    pull(base_resource)
-  
-  us_heat_long$base_resource <- factor(us_heat_long$base_resource, levels = rev(order_by_presence_us))
-  
-  p_us_heat <- ggplot(us_heat_long, aes(x = ig, y = base_resource, fill = present)) +
-    geom_tile() +
-    scale_fill_gradient(limits = c(0,1), breaks = c(0,1),
-                        labels = c("Absent","Present"),
-                        low = "#11253f", high = "#33d17a", name = NULL) +
-    labs(title = "US Realm IGs: Profiled Base Resources",
-         x = "US Realm Implementation Guide", y = "Base Resource")
-  p_us_heat <- apply_theme(p_us_heat, base_size = 12) +
-    theme(panel.grid = element_blank(),
-          axis.text.y = element_text(size = 8))
-  
-  ggsave(file.path(FIG_DIR, "usrealm_profile_presence_heatmap.png"),
-         p_us_heat, width = 9, height = 14, dpi = 150)
-}
+  if (nrow(by_version_realm) > 0) {
+    write.csv(by_version_realm, version_file, row.names = FALSE)
+    message("✅ ", version_file)
+  }
+}, error = function(e) {
+  message("⚠️ Note: ", e$message)
+})
 
-message("\n✅ Done.")
-message("CSVs → ", normalizePath(PROC_DIR))
-message("PNG  → ", normalizePath(FIG_DIR))
+# ---- Step 9: Final Summary ---------------------------------------------------
+cat("\n")
+cat("═══════════════════════════════════════════════════════════════════════\n")
+cat("                            FINAL SUMMARY                             \n")
+cat("═══════════════════════════════════════════════════════════════════════\n\n")
+
+cat(sprintf("✅ Total Implementation Guides: %d\n", nrow(ig_with_realm)))
+cat(sprintf("✅ US Implementation Guides: %d (%.1f%%)\n", 
+            nrow(us_guides), 
+            100 * nrow(us_guides) / nrow(ig_with_realm)))
+cat(sprintf("✅ International Guides: %d (%.1f%%)\n",
+            nrow(international_guides),
+            100 * nrow(international_guides) / nrow(ig_with_realm)))
+cat(sprintf("✅ Realms Identified: %d\n", n_distinct(ig_with_realm$realm)))
+
+# Show realms with guides
+realms_list <- ig_with_realm %>%
+  distinct(realm) %>%
+  pull(realm) %>%
+  sort()
+
+cat(sprintf("✅ Realms: %s\n\n", paste(realms_list, collapse = ", ")))
+
+cat("📊 Top 10 Realms by Implementation Guide Count:\n")
+print(realm_summary %>% head(10))
+
+cat("\n✅ Official IG Registry analysis complete!\n")
+cat("   All files saved to: ", normalizePath(PROC_DIR), "\n\n")
+
+# Display flattened data check
+cat("Data Type Check:\n")
+cat(sprintf("  package_id class: %s\n", class(ig_with_realm$package_id)[1]))
+cat(sprintf("  realm class: %s\n", class(ig_with_realm$realm)[1]))
+cat(sprintf("  fhir_version class: %s\n", class(ig_with_realm$fhir_version)[1]))
+cat("\n")
