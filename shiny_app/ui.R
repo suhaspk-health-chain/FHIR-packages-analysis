@@ -1,5 +1,5 @@
 # ==============================================================
-# ui.R — FHIR Packages Dashboard UI (Complete Final Version)
+# ui.R — FHIR Packages Dashboard UI (With Version Filter)
 # ==============================================================
 
 # Create footer component (will be added to each page)
@@ -11,11 +11,11 @@ footer_component <- div(
              "Built with ", icon("heart", style="color:#f26d21;"), " using R Shiny | ",
              "November 2025 | ",
              "Follow: ",
-             tags$a(href="https://www.linkedin.com/in/YOUR_LINKEDIN_USERNAME", target="_blank", 
+             tags$a(href="https://www.linkedin.com/in/YOUR_LINKEDIN_USERNAME", target="_blank",
                     icon("linkedin", style="color:#0A66C2; margin:0 8px;"), "LinkedIn"),
-             tags$a(href="https://YOUR_QUARTO_SITE.com", target="_blank", 
+             tags$a(href="https://YOUR_QUARTO_SITE.com", target="_blank",
                     icon("globe", style="color:#2a5eb4; margin:0 8px;"), "Quarto"),
-             tags$a(href="https://github.com/suhaspk-health-chain/FHIR-packages-analysis", target="_blank", 
+             tags$a(href="https://github.com/suhaspk-health-chain/FHIR-packages-analysis", target="_blank",
                     icon("github", style="color:#333; margin:0 8px;"), "GitHub"),
              style="font-size:14px; color:#666; margin:0;"
            )
@@ -139,8 +139,8 @@ navbarPage(
                         hr(style="border-color:#f26d21;"),
                         h4("Introduction"),
                         p(style="font-size:16px; line-height:1.6;",
-                          "This dashboard provides comprehensive insights into FHIR (Fast Healthcare Interoperability Resources) packages 
-              across different versions, realms, and implementation statuses. FHIR is a standard for healthcare data exchange, 
+                          "This dashboard provides comprehensive insights into FHIR (Fast Healthcare Interoperability Resources) packages
+              across different versions, realms, and implementation statuses. FHIR is a standard for healthcare data exchange,
               and this tool helps analyze the distribution and evolution of FHIR packages globally."
                         ),
                         br(),
@@ -149,7 +149,7 @@ navbarPage(
                           style="font-size:16px; line-height:1.8;",
                           tags$li(strong("Visualize Package Distribution:"), " Explore how FHIR packages are distributed across versions, realms (countries/regions), statuses, and authors."),
                           tags$li(strong("Track Resource Evolution:"), " Monitor additions and deletions of FHIR resources across version transitions."),
-                          tags$li(strong("Identify Patterns:"), " Discover relationships between different categorical variables through various chart types including heatmaps and correlation matrices."),
+                          tags$li(strong("Identify Patterns:"), " Discover relationships between different categorical variables through bar charts (with optional faceting) and heatmaps."),
                           tags$li(strong("Support Decision Making:"), " Provide data-driven insights for healthcare IT professionals, standards developers, and implementation teams.")
                         )
                       )
@@ -195,7 +195,7 @@ navbarPage(
              fluidRow(
                column(12, wellPanel(
                  style="background:#f0f8ff; border:1px solid #d0e8f7; padding:10px;",
-                 p(strong("Data Snapshot:"), 
+                 p(strong("Data Snapshot:"),
                    " Built at ", textOutput("meta_built_at", inline = TRUE),
                    " | Processed: ", textOutput("meta_processed", inline = TRUE),
                    " | Raw: ", textOutput("meta_raw", inline = TRUE),
@@ -223,17 +223,13 @@ navbarPage(
                         h4("Plot Configuration", style="color:#f26d21; margin-top:0; text-align:center;"),
                         hr(),
                         
+                        # Plot Type Selection
                         selectInput(
                           "plot_type",
                           "Select Plot Type:",
                           choices = c(
                             "Bar Chart" = "bar",
-                            "Pie Chart" = "pie",
-                            "Grouped Bars" = "grouped",
-                            "Stacked Bars" = "stacked",
-                            "Scatter Plot" = "scatter",
-                            "Heatmap" = "heatmap",
-                            "Correlation Matrix" = "correlation"
+                            "Heatmap" = "heatmap"
                           ),
                           selected = "bar"
                         ),
@@ -250,8 +246,9 @@ navbarPage(
                           selected = "version"
                         ),
                         
+                        # Show Y variable for heatmap
                         conditionalPanel(
-                          condition = "input.plot_type != 'bar' && input.plot_type != 'pie' && input.plot_type != 'correlation'",
+                          condition = "input.plot_type == 'heatmap'",
                           selectInput(
                             "plot_y_var",
                             "Y-Axis Variable:",
@@ -265,11 +262,12 @@ navbarPage(
                           )
                         ),
                         
+                        # Facet option for bar charts
                         conditionalPanel(
-                          condition = "input.plot_type == 'grouped' || input.plot_type == 'stacked'",
+                          condition = "input.plot_type == 'bar'",
                           selectInput(
                             "facet_var",
-                            "Facet By:",
+                            "Facet By (Optional):",
                             choices = c(
                               "None" = "none",
                               "FHIR Version" = "version",
@@ -278,15 +276,6 @@ navbarPage(
                               "Author" = "auth"
                             ),
                             selected = "none"
-                          )
-                        ),
-                        
-                        conditionalPanel(
-                          condition = "input.plot_type == 'scatter'",
-                          checkboxInput(
-                            "show_trend",
-                            "Show Trend Line",
-                            value = TRUE
                           )
                         ),
                         
@@ -301,6 +290,21 @@ navbarPage(
                         
                         hr(),
                         
+                        h5("Data Filters", style="color:#0c223f; font-weight:bold; margin-bottom:15px;"),
+                        
+                        # NEW: FHIR Version Filter
+                        selectizeInput(
+                          "version_filter_plot",
+                          "Filter by FHIR Version (optional):",
+                          choices = NULL,
+                          multiple = TRUE,
+                          options = list(
+                            placeholder = 'Select FHIR versions to filter',
+                            plugins = list('remove_button')
+                          )
+                        ),
+                        
+                        # Existing Realm Filter
                         selectizeInput(
                           "realm_filter",
                           "Filter by Realm (optional):",
@@ -330,8 +334,8 @@ navbarPage(
                         style = "background:#ffffff; border:2px solid #ddd; padding:15px; min-height:850px;",
                         conditionalPanel(
                           condition = "output.plot_generated",
-                          downloadButton("download_custom_plot", "Download Plot", 
-                                         class = "btn-sm btn-success", 
+                          downloadButton("download_custom_plot", "Download Plot",
+                                         class = "btn-sm btn-success",
                                          style="margin-bottom:15px; float:right;")
                         ),
                         plotOutput("custom_plot", height = "800px")
@@ -373,7 +377,7 @@ navbarPage(
                                  )
                           ),
                           column(6,
-                                 p(strong("Info:"), " Select one or more versions to filter transitions.", 
+                                 p(strong("Info:"), " Select one or more versions to filter transitions.",
                                    style="margin-top:25px; color:#666; font-size:14px;")
                           )
                         )
@@ -385,12 +389,12 @@ navbarPage(
              
              # Charts Section
              fluidRow(
-               column(6, 
+               column(6,
                       h4("Resources Added per Transition"),
                       downloadButton("download_plot_added", "Download Plot", class = "btn-sm btn-info", style="margin-bottom:10px;"),
                       plotOutput("plot_added", height = "450px")
                ),
-               column(6, 
+               column(6,
                       h4("Resources Removed per Transition"),
                       downloadButton("download_plot_removed", "Download Plot", class = "btn-sm btn-info", style="margin-bottom:10px;"),
                       plotOutput("plot_removed", height = "450px")
@@ -402,7 +406,7 @@ navbarPage(
              
              # Transition Summary Table
              fluidRow(
-               column(12, 
+               column(12,
                       h4("Transition Summary", style="color:#f26d21;"),
                       p("Overview of resource changes across version transitions.", style="color:#666;"),
                       DTOutput("tbl_transitions")
@@ -443,23 +447,27 @@ navbarPage(
              p("Explore the underlying data in tabular format.",
                style="text-align:center; color:#666; margin-bottom:30px;"),
              hr(),
+             
              tabsetPanel(
-               tabPanel("Resources", 
+               tabPanel("Resources",
                         br(),
                         h4("All Resources"),
                         DTOutput("tbl_resources")
                ),
-               tabPanel("Presence Matrix", 
+               
+               tabPanel("Presence Matrix",
                         br(),
                         h4("Resource Presence Matrix"),
                         DTOutput("tbl_matrix")
                ),
-               tabPanel("Stable (≥4)", 
+               
+               tabPanel("Stable (≥4)",
                         br(),
                         h4("Stable Resources (Present in ≥4 versions)"),
                         DTOutput("tbl_stable")
                ),
-               tabPanel("Raw Preview", 
+               
+               tabPanel("Raw Preview",
                         br(),
                         h4("Raw Data Preview (First 100 rows)"),
                         DTOutput("tbl_raw")
@@ -486,8 +494,8 @@ navbarPage(
                         
                         h3("Project Overview", style="color:#0c223f;"),
                         p(style="font-size:16px; line-height:1.8;",
-                          "The FHIR Packages Dashboard is an interactive data exploration tool designed to analyze and visualize 
-              the distribution and evolution of Fast Healthcare Interoperability Resources (FHIR) packages across 
+                          "The FHIR Packages Dashboard is an interactive data exploration tool designed to analyze and visualize
+              the distribution and evolution of Fast Healthcare Interoperability Resources (FHIR) packages across
               different versions, implementation guides, and global healthcare realms."
                         ),
                         
@@ -496,7 +504,7 @@ navbarPage(
                         h3("Key Features", style="color:#0c223f;"),
                         tags$ul(
                           style="font-size:16px; line-height:1.8;",
-                          tags$li(strong("Interactive Visualization:"), " Generate custom plots with 7 different chart types including bar charts, heatmaps, and correlation matrices."),
+                          tags$li(strong("Interactive Visualization:"), " Generate custom plots with bar charts (optionally faceted) and heatmaps for clear data exploration."),
                           tags$li(strong("Version Analysis:"), " Track resource evolution across FHIR versions (DSTU2, STU3, R4, R4B, R5, R6)."),
                           tags$li(strong("Global Coverage:"), " Analyze packages by realm (country/region) and implementing organization."),
                           tags$li(strong("Dynamic Filtering:"), " Filter data by FHIR version and realm for focused analysis."),
@@ -577,8 +585,8 @@ navbarPage(
                         
                         h3("GitHub Contributions", style="color:#0c223f;"),
                         p(style="font-size:16px; line-height:1.6; color:#666;",
-                          "This is an open-source project! Your contributions are welcome and appreciated. 
-              Whether you've found a bug, have a feature request, or want to contribute code, 
+                          "This is an open-source project! Your contributions are welcome and appreciated.
+              Whether you've found a bug, have a feature request, or want to contribute code,
               we'd love to hear from you."
                         ),
                         
@@ -589,8 +597,8 @@ navbarPage(
                           # Issues Card
                           column(6,
                                  div(
-                                   style="background: linear-gradient(135deg, #f6f8fa 0%, #ffffff 100%); 
-                         border: 2px solid #0969da; border-radius: 10px; padding: 25px; 
+                                   style="background: linear-gradient(135deg, #f6f8fa 0%, #ffffff 100%);
+                         border: 2px solid #0969da; border-radius: 10px; padding: 25px;
                          min-height: 220px; transition: all 0.3s ease;
                          box-shadow: 0 2px 8px rgba(9,105,218,0.1);",
                                    onmouseover="this.style.boxShadow='0 4px 16px rgba(9,105,218,0.2)'; this.style.transform='translateY(-2px)';",
@@ -623,8 +631,8 @@ navbarPage(
                           # Pull Request Card
                           column(6,
                                  div(
-                                   style="background: linear-gradient(135deg, #f6f8fa 0%, #ffffff 100%); 
-                         border: 2px solid #0969da; border-radius: 10px; padding: 25px; 
+                                   style="background: linear-gradient(135deg, #f6f8fa 0%, #ffffff 100%);
+                         border: 2px solid #0969da; border-radius: 10px; padding: 25px;
                          min-height: 220px; transition: all 0.3s ease;
                          box-shadow: 0 2px 8px rgba(9,105,218,0.1);",
                                    onmouseover="this.style.boxShadow='0 4px 16px rgba(9,105,218,0.2)'; this.style.transform='translateY(-2px)';",
@@ -707,12 +715,12 @@ navbarPage(
                             " to get started!",
                             style="font-size:14px; color:#856404; margin:0;"
                           )
-                        )
+                        ),
+                        
+                        br()
                       )
                )
              ),
-             
-             br(),
              
              # Data Sources Section
              fluidRow(
@@ -726,13 +734,13 @@ navbarPage(
                         div(
                           style="background:#ffffff; padding:15px; border-left:4px solid #f26d21; margin-bottom:20px;",
                           h4(tags$a(
-                            href="https://packages2.fhir.org/xig", 
+                            href="https://packages2.fhir.org/xig",
                             target="_blank",
                             icon("external-link-alt"), " FHIR Implementation Guide Statistics",
                             style="color:#f26d21;"
                           )),
                           p(style="font-size:15px; margin-bottom:0;",
-                            "Official FHIR package registry containing comprehensive statistics on 75,000+ resources 
+                            "Official FHIR package registry containing comprehensive statistics on 75,000+ resources
                 across all published implementation guides."
                           )
                         ),
@@ -797,12 +805,12 @@ navbarPage(
                                    )
                                  )
                           )
-                        )
+                        ),
+                        
+                        br()
                       )
                )
              ),
-             
-             br(),
              
              # Footer
              footer_component
