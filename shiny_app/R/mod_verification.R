@@ -97,7 +97,7 @@ mod_hierarchy_ui <- function(id) {
         " (Implementation Guides), which contain individual ",
         strong("Resource Definitions"), ". ",
         "The left chart shows how many total resource entries exist per FHIR version.
-         The right chart shows the top 10 resource types — the categories that appear most often
+         The right chart shows the top 10 resource types, the categories that appear most often
          across all packages. The table below shows the most resource-rich packages."
       )
     ),
@@ -176,7 +176,7 @@ mod_catalog_ui <- function(id) {
       style="background:#f3fff8; border-left:4px solid #33d17a; padding:14px 18px;",
       p(style="margin:0; font-size:15px; line-height:1.6;",
         strong("What is a FHIR Resource Type? "),
-        "A resource type is a category of healthcare data — like a blank form with named fields.
+        "A resource type is a category of healthcare data, like a blank form with named fields.
         A ", strong("StructureDefinition"), " defines the exact shape of a record (e.g. 'A Patient must have name, birthDate, and gender').
         A ", strong("ValueSet"), " is a list of allowed values for a field (e.g. 'Gender can only be: male, female, unknown, other').
         A ", strong("CodeSystem"), " defines the codes themselves (like the ICD-10 disease codes).
@@ -188,7 +188,7 @@ mod_catalog_ui <- function(id) {
       column(12, plotOutput(ns("plot_resource_types_bar"), height = "520px"))
     ),
     br(),
-    h4("All Resource Types — Complete List", style="color:#0c223f;"),
+    h4("All Resource Types - Complete List", style="color:#0c223f;"),
     DTOutput(ns("table_resource_types"))
   )
 }
@@ -206,7 +206,7 @@ mod_catalog_server <- function(id) {
         coord_flip() +
         expand_limits(y = max(df$count) * 1.4) +
         scale_fill_healthchain() +
-        labs(title = "Resource Types by Count — Top 20", x = NULL, y = "Number of Definitions") +
+        labs(title = "Resource Types by Count - Top 20", x = NULL, y = "Number of Definitions") +
         hc_theme()
     })
 
@@ -222,7 +222,7 @@ mod_catalog_server <- function(id) {
 mod_us_ui <- function(id) {
   ns <- NS(id)
   fluidPage(
-    h2(icon("flag-usa"), " US Realm — Deep Dive", style="color:#0c223f;"),
+    h2(icon("flag"), " US Realm - Deep Dive", style="color:#0c223f;"),
     wellPanel(
       style="background:#fdfaf3; border-left:4px solid #e8a838; padding:14px 18px;",
       p(style="margin:0; font-size:15px; line-height:1.6;",
@@ -230,7 +230,7 @@ mod_us_ui <- function(id) {
         "The United States has some of the world's most detailed healthcare interoperability regulations.
         The ", strong("CMS Interoperability Rule (CMS-0057F)"), " and ", strong("ONC 21st Century Cures Act"),
         " require payers and providers to expose patient data via FHIR APIs. This has driven a large wave
-        of US-specific Implementation Guides — from insurance (CMS), pharmacy (NCPDP), clinical labs (HL7 Da Vinci),
+        of US-specific Implementation Guides: insurance (CMS), pharmacy (NCPDP), clinical labs (HL7 Da Vinci),
         and more. The left chart shows FHIR version adoption among US IGs; the right shows the clinical categories
         they cover."
       )
@@ -311,10 +311,10 @@ mod_verification_ui <- function(id) {
         strong("Where does this data come from? "),
         "All package data is scraped from the ",
         tags$a("FHIR Cross-Implementation Guide (XIG) index", href="https://packages2.fhir.org/xig", target="_blank"),
-        " — the official global registry maintained by HL7. The 351 official Implementation Guides from the ",
+        ", the official global registry maintained by HL7. The 351 official Implementation Guides from the ",
         tags$a("HL7 IG Registry", href="https://github.com/FHIR/ig-registry", target="_blank"),
         " are used to cross-reference package authorship and realm. The table below proves the
-        mathematical consistency of the data: IGs → Packages → Resources."
+        mathematical consistency of the data: IGs -> Packages -> Resources."
       )
     ),
     br(),
@@ -336,7 +336,7 @@ mod_verification_server <- function(id) {
                   format(TOTAL_RESOURCES, big.mark = ","), format(MATCHED_RESOURCES, big.mark = ","), 
                   sprintf("%.1f%%", MATCH_PERCENTAGE), format(AVG_RESOURCES_PER_PACKAGE, big.mark = ","), 
                   "5 (R3-R6)", "39", "23"),
-        Status = rep("✓", 9)
+        Status = rep("OK", 9)
       )
     }, striped = TRUE, hover = TRUE, bordered = TRUE)
     
@@ -365,7 +365,7 @@ mod_about_ui <- function(id) {
 
         h3("What Problem Does FHIR Solve?", style="color:#0c223f;"),
         p(style="font-size:15px; line-height:1.8;",
-          "Imagine you switch doctors. Your new doctor needs your entire medical history — lab results,
+          "Imagine you switch doctors. Your new doctor needs your entire medical history - lab results,
           prescriptions, imaging reports, allergies. But your old hospital uses one software system and
           your new one uses another. Without a shared language, that data doesn't transfer automatically.
           You end up filling out the same forms over and over, or worse, your doctor makes decisions
@@ -373,13 +373,13 @@ mod_about_ui <- function(id) {
         p(style="font-size:15px; line-height:1.8;",
           strong("FHIR (Fast Healthcare Interoperability Resources)"),
           " is the solution. Created by HL7 International, it defines a universal 'grammar' for
-          healthcare data — so any compliant system can send or receive a Patient record, a lab Observation,
+          healthcare data so any compliant system can send or receive a Patient record, a lab Observation,
           or an insurance Coverage document and know exactly what it means."),
 
         h3("What is a FHIR Package?", style="color:#0c223f; margin-top:28px;"),
         p(style="font-size:15px; line-height:1.8;",
           "FHIR defines the grammar; Implementation Guides (IGs) define the ", em("dialect"),
-          ". A FHIR package is a published IG — a versioned bundle of rules that says:
+          ". A FHIR package is a published IG, a versioned bundle of rules that says:
           'When you send us a Patient record, it must include these fields, use these code lists,
           and follow these structural rules.'"),
         p(style="font-size:15px; line-height:1.8;",
@@ -390,11 +390,11 @@ mod_about_ui <- function(id) {
 
         h3("What the Data Reveals", style="color:#0c223f; margin-top:28px;"),
         tags$ul(style="font-size:15px; line-height:2.0;",
-          tags$li(strong("75,411 resource definitions"), " across 1,096+ packages — the full scope of what the
+          tags$li(strong("75,411 resource definitions"), " across 1,096+ packages - the full scope of what the
                   global FHIR community has agreed to standardize."),
           tags$li(strong("FHIR R4 dominates: "), "908 of 1,096 packages (83%) target FHIR R4, making it the
                   de facto standard for new healthcare application development."),
-          tags$li(strong("ValueSets and StructureDefinitions"), " together account for 76% of all definitions —
+          tags$li(strong("ValueSets and StructureDefinitions"), " together account for 76% of all definitions -
                   reflecting that most of the work in interoperability is defining ", em("what values are allowed"),
                   " and ", em("what shapes data must take"), "."),
           tags$li(strong("The US leads globally:"), " US implementation guides cover everything from Medicare
@@ -412,20 +412,20 @@ mod_about_ui <- function(id) {
             p(style="font-size:14px; line-height:1.6; text-align:center;",
               "The ", strong("blueprint"), " for a healthcare record.
               Defines every field name, data type, and cardinality.
-              Like an architectural drawing — it specifies exactly what a Patient or Observation
+              Like an architectural drawing: it specifies exactly what a Patient or Observation
               record must contain.")
           )),
           column(4, wellPanel(style="background:#f3f8ff; border:1px solid #0c223f;",
             h4("ValueSet", style="color:#0c223f; text-align:center;"),
             p(style="font-size:14px; line-height:1.6; text-align:center;",
               "An ", strong("approved list of values"), " for a given field.
-              Like a dropdown menu — 'Gender must be one of: male, female, other, unknown.'
+              Like a dropdown menu: 'Gender must be one of: male, female, other, unknown.'
               Prevents free-text chaos and makes data comparable across systems.")
           )),
           column(4, wellPanel(style="background:#f3fff8; border:1px solid #33d17a;",
             h4("CodeSystem", style="color:#33d17a; text-align:center;"),
             p(style="font-size:14px; line-height:1.6; text-align:center;",
-              "The ", strong("dictionary of codes"), " themselves — SNOMED CT, ICD-10, LOINC.
+              "The ", strong("dictionary of codes"), " themselves: SNOMED CT, ICD-10, LOINC.
               Each code has a precise definition so 'Hypertension' means the same thing
               in Tokyo and Toronto.")
           ))
@@ -433,15 +433,12 @@ mod_about_ui <- function(id) {
 
         h3("Data Sources & Methodology", style="color:#0c223f; margin-top:28px;"),
         p(style="font-size:15px; line-height:1.8;",
-          "The package data was scraped from the ",
-          tags$a("FHIR Cross-Implementation Guide (XIG) index",
-                 href="https://packages2.fhir.org/xig", target="_blank"),
-          " — the HL7-maintained global registry of all published FHIR packages.
-          Official IG metadata (realm, category, FHIR version) was cross-referenced from the ",
-          tags$a("HL7 IG Registry on GitHub",
-                 href="https://github.com/FHIR/ig-registry", target="_blank"),
-          ". The data was cleaned and structured using R, with this Shiny dashboard built
-          for interactive exploration."),
+          "Package data was sourced from the ",
+          tags$a("FHIR XIG Registry", href="https://packages2.fhir.org/xig", target="_blank"),
+          " - HL7's global index of all published FHIR Implementation Guides.",
+          " Official IG metadata (realm, category, FHIR version) was cross-referenced with the ",
+          tags$a("HL7 IG Registry on GitHub", href="https://github.com/FHIR/ig-registry", target="_blank"),
+          ". The dataset was cleaned and structured in R, and this Shiny dashboard was built for interactive exploration."),
 
         hr(style="border-color:#ddd; margin-top:30px;"),
 

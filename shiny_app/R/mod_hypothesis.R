@@ -7,7 +7,7 @@
 HYPOTHESES <- list(
 
   h1 = list(
-    label = "H1 — R4 packages contain more resources than R3 packages",
+    label = "H1 - R4 packages contain more resources than R3 packages",
     h0    = "The median number of resources per package is the same for FHIR R3 and R4.",
     h1    = "FHIR R4 packages contain significantly more resources per package than R3 packages.",
     method = "Wilcoxon Rank-Sum Test (one-sided, R4 > R3)",
@@ -18,7 +18,7 @@ HYPOTHESES <- list(
   ),
 
   h2 = list(
-    label = "H2 — US realm accounts for more than 40% of all packages",
+    label = "H2 - US realm accounts for more than 40% of all packages",
     h0    = "The US realm contributes 40% or fewer of all unique FHIR packages.",
     h1    = "The US realm contributes more than 40% of all unique FHIR packages.",
     method = "One-Sample Proportion Test (one-sided)",
@@ -29,7 +29,7 @@ HYPOTHESES <- list(
   ),
 
   h3 = list(
-    label = "H3 — Status distribution differs across FHIR versions",
+    label = "H3 - Status distribution differs across FHIR versions",
     h0    = "The distribution of resource status (active/draft/retired) is the same across all FHIR versions.",
     h1    = "The distribution of resource status is significantly different across FHIR versions.",
     method = "Chi-Square Test of Independence",
@@ -40,7 +40,7 @@ HYPOTHESES <- list(
   ),
 
   h4 = list(
-    label = "H4 — ValueSets & StructureDefinitions exceed 70% of all resources",
+    label = "H4 - ValueSets & StructureDefinitions exceed 70% of all resources",
     h0    = "ValueSets and StructureDefinitions together make up 70% or fewer of all resources.",
     h1    = "ValueSets and StructureDefinitions together account for more than 70% of all resources.",
     method = "One-Sample Proportion Test (one-sided)",
@@ -51,7 +51,7 @@ HYPOTHESES <- list(
   ),
 
   h5 = list(
-    label = "H5 — US packages contain more resources per package than non-US packages",
+    label = "H5 - US packages contain more resources per package than non-US packages",
     h0    = "The median resources-per-package is the same for US and non-US realms.",
     h1    = "US packages contain a significantly different number of resources than non-US packages.",
     method = "Wilcoxon Rank-Sum Test (two-sided)",
@@ -62,7 +62,7 @@ HYPOTHESES <- list(
   ),
 
   h6 = list(
-    label = "H6 — Resource type mix differs between US and UV (Universal) realms",
+    label = "H6 - Resource type mix differs between US and UV (Universal) realms",
     h0    = "The distribution of resource types is the same in the US and UV realms.",
     h1    = "The US and UV realms have significantly different mixes of resource types.",
     method = "Chi-Square Test of Independence (top 6 resource types)",
@@ -82,7 +82,7 @@ mod_hypothesis_ui <- function(id) {
       style = "background:#fff8f3; border-left:4px solid #f26d21; padding:14px 18px; margin-bottom:16px;",
       p(style = "margin:0; font-size:15px; line-height:1.6;",
         strong("What is this? "),
-        "Each claim about the FHIR ecosystem — 'R4 is bigger', 'US dominates', 'conformance resources rule' — ",
+        "Each claim about the FHIR ecosystem - 'R4 is bigger', 'US dominates', 'conformance resources rule' - ",
         "can be tested statistically. Select a hypothesis, choose a significance level, and run the test. ",
         "Results include the test statistic, p-value, and a plain-English verdict so you can draw ",
         "evidence-based conclusions rather than rely on intuition."
@@ -97,7 +97,7 @@ mod_hypothesis_ui <- function(id) {
                     selected = "h1", width = "100%")
       ),
       column(3,
-        selectInput(ns("alpha"), "Significance Level (\u03b1):",
+        selectInput(ns("alpha"), "Significance Level (alpha):",
                     choices = c("0.01" = 0.01, "0.05" = 0.05, "0.10" = 0.10),
                     selected = 0.05)
       ),
@@ -312,15 +312,15 @@ mod_hypothesis_server <- function(id) {
         "background:#fff8f3; border:2px solid #e8a838;"
 
       verdict_icon  <- if (reject) icon("check-circle", style="color:#33d17a;") else icon("times-circle", style="color:#e8a838;")
-      verdict_head  <- if (reject) "Reject H\u2080 — Evidence supports H\u2081" else "Fail to reject H\u2080 — Insufficient evidence for H\u2081"
+      verdict_head  <- if (reject) "Reject H0 - Evidence supports H1" else "Fail to reject H0 - Insufficient evidence for H1"
 
       plain_english <- if (reject) {
         switch(input$hypothesis,
           h1 = "R4 packages are statistically significantly larger than R3 packages. The move to R4 brought not just new resource types but bigger, more comprehensive Implementation Guides.",
           h2 = "The US realm's share of all packages is statistically significantly above 40%. Regulatory mandates have made the US the undisputed dominant force in FHIR package production.",
-          h3 = "Status distributions are significantly different across FHIR versions. The FHIR ecosystem is dynamic — resources move through active/draft/retired stages as the standard evolves.",
+          h3 = "Status distributions are significantly different across FHIR versions. The FHIR ecosystem is dynamic - resources move through active/draft/retired stages as the standard evolves.",
           h4 = "ValueSets and StructureDefinitions together account for significantly more than 70% of all resources. The ecosystem is overwhelmingly about defining rules, not storing clinical instances.",
-          h5 = "There is a statistically significant difference in package size between US and non-US realms. US packages are built differently — likely broader in scope due to regulatory requirements.",
+          h5 = "There is a statistically significant difference in package size between US and non-US realms. US packages are built differently - likely broader in scope due to regulatory requirements.",
           h6 = "The resource type mix is significantly different between US and UV realms. US and universal guides serve fundamentally different purposes with different technical content."
         )
       } else {
@@ -350,7 +350,7 @@ mod_hypothesis_server <- function(id) {
                           style = paste0("font-weight:bold; color:", if (reject) "#33d17a" else "#e8a838"),
                           ifelse(p_val < 0.0001, "< 0.0001", round(p_val, 6))
                         ))),
-                tags$tr(tags$td(tags$b("\u03b1 used:")), tags$td(alpha))
+                tags$tr(tags$td(tags$b("alpha used:")), tags$td(alpha))
               )
             )
           ),
@@ -429,8 +429,8 @@ mod_hypothesis_server <- function(id) {
           h$method, "  |  ",
           res$stat_label, " = ", round(res$stat_val, 4), "  |  ",
           "p = ", ifelse(!is.null(res$p) && res$p < 0.0001, "< 0.0001", round(res$p, 6)), "  |  ",
-          "\u03b1 = ", input$alpha, "  |  ",
-          ifelse(reject, "REJECT H\u2080", "FAIL TO REJECT H\u2080"), "  |  ",
+          "alpha = ", input$alpha, "  |  ",
+          ifelse(reject, "REJECT H0", "FAIL TO REJECT H0"), "  |  ",
           "FHIR XIG Registry  |  EDA by Suhas P K  |  ", format(Sys.Date(), "%Y-%m-%d")
         )
         ggplot2::ggsave(f,

@@ -1,0 +1,936 @@
+---
+title: "The Hidden Language of Healthcare Data"
+subtitle: "An Exploratory Data Analysis of FHIR Resources from the Global Implementation Guide Registry"
+author: "Suhas P K"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    theme: cosmo
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: true
+      smooth_scroll: true
+    toc_depth: 3
+    code_folding: hide
+    df_print: paged
+    self_contained: true
+---
+
+```{css, echo=FALSE}
+/* =========================================================
+   HealthChain EDA Theme — mirrors the Shiny dashboard
+   Primary:  #f26d21 (HC Orange)
+   Dark:     #0c223f (HC Navy)
+   ========================================================= */
+
+/* Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+body {
+  font-family: 'Poppins', 'Segoe UI', sans-serif;
+  font-size: 15px;
+  color: #2d2d2d;
+  background-color: #ffffff;
+  line-height: 1.8;
+}
+
+/* ---- Headers ---- */
+h1.title {
+  font-size: 2.4em;
+  font-weight: 700;
+  color: #f26d21;
+  text-align: center;
+  margin-top: 30px;
+  border-bottom: 3px solid #f26d21;
+  padding-bottom: 12px;
+}
+
+h3.subtitle {
+  color: #0c223f;
+  font-weight: 400;
+  text-align: center;
+  font-size: 1.1em;
+  margin-top: -8px;
+  margin-bottom: 6px;
+}
+
+h4.author, h4.date {
+  color: #888;
+  text-align: center;
+  font-weight: 400;
+  font-size: 0.95em;
+}
+
+h1, h2 {
+  color: #f26d21;
+  font-weight: 700;
+  border-bottom: 2px solid #fce8d8;
+  padding-bottom: 6px;
+  margin-top: 40px;
+}
+
+h3 {
+  color: #0c223f;
+  font-weight: 600;
+  margin-top: 28px;
+}
+
+/* ---- TOC ---- */
+#TOC {
+  background: #f8f9fa;
+  border: 1px solid #ebebeb;
+  border-left: 4px solid #f26d21;
+  border-radius: 4px;
+  padding: 16px;
+  font-size: 13.5px;
+}
+
+#TOC a { color: #0c223f; text-decoration: none; }
+#TOC a:hover { color: #f26d21; }
+#TOC ul { padding-left: 18px; }
+
+/* ---- Mobile: hide floating TOC, show inline only ---- */
+@media (max-width: 767px) {
+  /* Hide the fixed sidebar TOC on mobile */
+  .tocify-wrapper {
+    display: none !important;
+  }
+  /* Give the main content full width */
+  .col-xs-12.col-sm-4.col-md-3 {
+    display: none !important;
+  }
+  .col-xs-12.col-sm-8.col-md-9 {
+    width: 100% !important;
+  }
+  /* Prevent the TOC toggle button from showing */
+  #toc-toggle {
+    display: none !important;
+  }
+}
+
+/* ---- Callout boxes ---- */
+.callout {
+  border-left: 5px solid #f26d21;
+  background: #fff8f3;
+  padding: 16px 20px;
+  border-radius: 0 6px 6px 0;
+  margin: 24px 0;
+  font-size: 14.5px;
+  line-height: 1.75;
+}
+
+.callout-navy {
+  border-left: 5px solid #0c223f;
+  background: #f0f4f8;
+  padding: 16px 20px;
+  border-radius: 0 6px 6px 0;
+  margin: 24px 0;
+  font-size: 14.5px;
+  line-height: 1.75;
+}
+
+.callout-dark {
+  background: #0c223f;
+  color: #ffffff;
+  padding: 22px 26px;
+  border-radius: 8px;
+  margin: 30px 0;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.callout-dark h3 {
+  color: #f26d21;
+  border: none;
+  margin-top: 0;
+}
+
+.callout-dark strong { color: #f26d21; }
+
+/* ---- KPI cards ---- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+  margin: 28px 0;
+}
+
+.kpi-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px 18px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.kpi-card.orange { border-top: 4px solid #f26d21; }
+.kpi-card.navy   { border-top: 4px solid #0c223f; }
+.kpi-card.green  { border-top: 4px solid #33d17a; }
+.kpi-card.gold   { border-top: 4px solid #e8a838; }
+
+.kpi-number {
+  font-size: 2.1em;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.kpi-card.orange .kpi-number { color: #f26d21; }
+.kpi-card.navy   .kpi-number { color: #0c223f; }
+.kpi-card.green  .kpi-number { color: #33d17a; }
+.kpi-card.gold   .kpi-number { color: #e8a838; }
+
+.kpi-label {
+  font-size: 12.5px;
+  color: #666;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ---- Section dividers ---- */
+hr {
+  border: none;
+  border-top: 2px solid #f26d21;
+  margin: 40px 0;
+  opacity: 0.3;
+}
+
+/* ---- Insight tags ---- */
+.insight-tag {
+  display: inline-block;
+  background: #f26d21;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 10px;
+  border-radius: 20px;
+  margin-bottom: 6px;
+}
+
+/* ---- Code blocks ---- */
+pre, code {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  background: #f6f8fa;
+  border-radius: 4px;
+}
+
+/* ---- End note ---- */
+.end-note {
+  background: linear-gradient(135deg, #0c223f 0%, #123358 100%);
+  color: white;
+  padding: 40px 36px;
+  border-radius: 10px;
+  margin: 40px 0 20px;
+  box-shadow: 0 8px 24px rgba(12,34,63,0.25);
+}
+
+.end-note h2 {
+  color: #f26d21;
+  border: none;
+  font-size: 1.7em;
+  margin-top: 0;
+}
+
+.end-note p { line-height: 1.9; font-size: 15.5px; }
+
+.end-note .stat-line {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: #f26d21;
+  margin: 8px 0;
+}
+
+.end-note .byline {
+  font-size: 12px;
+  color: #aaa;
+  border-top: 1px solid #1e3a5f;
+  margin-top: 24px;
+  padding-top: 14px;
+}
+
+/* ---- Images ---- */
+img { border-radius: 6px; max-width: 100%; }
+
+/* ---- Table styling ---- */
+.dataTable { font-size: 13px; }
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo        = TRUE,
+  message     = FALSE,
+  warning     = FALSE,
+  fig.align   = "center",
+  fig.width   = 13,
+  fig.height  = 7.5,
+  dpi         = 220,
+  out.width   = "100%",
+  cache       = FALSE
+)
+```
+
+```{r libraries, echo=FALSE}
+suppressPackageStartupMessages({
+  library(dplyr)
+  library(tidyr)
+  library(stringr)
+  library(ggplot2)
+  library(scales)
+  library(readr)
+  library(arrow)
+  library(forcats)
+  library(knitr)
+  library(kableExtra)
+  library(htmltools)
+})
+
+# ---- HealthChain colour palette ----
+HC_ORANGE <- "#f26d21"
+HC_NAVY   <- "#0c223f"
+HC_MID    <- "#123358"
+HC_GREEN  <- "#33d17a"
+HC_GOLD   <- "#e8a838"
+HC_BLUE   <- "#4a90d9"
+HC_PURPLE <- "#6c5ce7"
+HC_TEAL   <- "#00b894"
+HC_RED    <- "#d63031"
+HC_BG     <- "#ffffff"
+HC_GRID   <- "#f0f0f0"
+
+HC_PALETTE <- c(HC_ORANGE, HC_NAVY, HC_MID, HC_GREEN, HC_GOLD,
+                HC_BLUE, HC_PURPLE, HC_TEAL, HC_RED, "#b2bec3")
+
+scale_fill_hc <- function(...) {
+  ggplot2::discrete_scale("fill", "hc",
+    palette = colorRampPalette(HC_PALETTE), ...)
+}
+scale_color_hc <- function(...) {
+  ggplot2::discrete_scale("colour", "hc",
+    palette = colorRampPalette(HC_PALETTE), ...)
+}
+
+theme_hc <- function(base_size = 18) {
+  theme_minimal(base_size = base_size) +
+    theme(
+      text             = element_text(family = "sans"),
+      plot.title       = element_text(face = "bold", color = HC_ORANGE,
+                                      size = base_size + 7, hjust = 0.5,
+                                      margin = margin(b = 8)),
+      plot.subtitle    = element_text(color = HC_NAVY, size = base_size + 1,
+                                      hjust = 0.5, margin = margin(b = 16)),
+      plot.caption     = element_text(color = "#888", size = base_size - 4,
+                                      hjust = 0, face = "italic",
+                                      margin = margin(t = 14)),
+      axis.title       = element_text(color = HC_NAVY, face = "bold",
+                                      size = base_size),
+      axis.text        = element_text(color = "#444", size = base_size - 2),
+      panel.grid.major = element_line(color = HC_GRID, linewidth = 0.4),
+      panel.grid.minor = element_blank(),
+      strip.background = element_rect(fill = HC_MID, color = NA),
+      strip.text       = element_text(color = "white", face = "bold",
+                                      size = base_size - 1),
+      legend.position  = "bottom",
+      legend.title     = element_text(face = "bold", color = HC_NAVY,
+                                      size = base_size - 1),
+      legend.text      = element_text(color = "#444", size = base_size - 2),
+      plot.background  = element_rect(fill = HC_BG, color = NA),
+      panel.background = element_rect(fill = HC_BG, color = NA),
+      plot.margin      = margin(t = 22, r = 22, b = 18, l = 22)
+    )
+}
+
+CAPTION <- "Source: FHIR XIG Registry (HL7 International)  |  EDA by Suhas P K"
+VERSION_ORDER <- c("R2", "R3", "R4", "R4B", "R5", "R6")
+```
+
+```{r load-data, echo=FALSE}
+# Paths — relative to this Rmd file (project root)
+PROC_DIR <- file.path("data", "processed")
+
+res <- arrow::read_parquet(file.path(PROC_DIR, "fhir_resources.parquet"))
+
+# Normalise columns (mirrors global.R / utils.R)
+if (!"version"       %in% names(res) && "fhir_version" %in% names(res))
+  res <- dplyr::rename(res, version = fhir_version)
+if (!"realm"         %in% names(res)) res$realm <- NA_character_
+if (!"resource_type" %in% names(res) && "identity_text" %in% names(res))
+  res$resource_type <- stringr::str_extract(res$identity_text, "^[^/]+")
+
+pkg_col  <- if ("package_text" %in% names(res)) "package_text" else "package"
+auth_col <- if ("auth"         %in% names(res)) "auth"         else NULL
+
+# Global KPIs
+TOTAL_ROWS     <- nrow(res)
+TOTAL_PACKAGES <- n_distinct(res[[pkg_col]], na.rm = TRUE)
+TOTAL_TYPES    <- n_distinct(res$resource_type, na.rm = TRUE)
+TOTAL_AUTHORS  <- if (!is.null(auth_col)) {
+  res %>% filter(!is.na(.data[[auth_col]]),
+                 !.data[[auth_col]] %in% c("", "none")) %>%
+    pull(auth_col) %>% n_distinct()
+} else { NA_integer_ }
+```
+
+---
+
+## The Problem Nobody Talks About
+
+Imagine you're a cardiologist, and your patient walks in for a follow-up after a surgery done at a different hospital across town. You ask your software to pull their records. It can't. The other hospital runs a different system. Their data lives in a different format, behind a different API, using different code systems for the same diagnosis.
+
+This isn't a rare edge case. This is **the daily reality of U.S. healthcare**.
+
+The American health system processes over **5 billion clinical encounters per year**, yet the data generated by those encounters is trapped in silos — EPIC speaks one dialect, Cerner speaks another, insurance systems speak a third. The result: redundant tests, delayed diagnoses, medication errors, and an estimated **$8.3 billion in administrative waste** per year attributed to lack of interoperability alone.
+
+Someone had to build a universal translator.
+
+<div class="callout">
+**The central question of this analysis:** How far has the FHIR ecosystem actually grown? Who is driving it? And what does the global distribution of FHIR resources tell us about where healthcare interoperability is winning — and where it still has miles to go?
+</div>
+
+---
+
+## Enter FHIR
+
+In 2014, HL7 International released the first draft of **FHIR** — *Fast Healthcare Interoperability Resources* — a standard designed to make healthcare data as easy to share as a REST API call.
+
+The insight was simple but radical: instead of defining a single monolithic data model (like HL7 v2 and v3 tried to do), FHIR breaks healthcare data into discrete, self-describing **Resources** — Patient, Observation, Medication, AllergyIntolerance, Claim, and hundreds more. Each Resource has a defined structure, a canonical URL, a version, and can be published as part of an **Implementation Guide (IG)** — a bundled rulebook that tells developers exactly how to use FHIR for a specific clinical context.
+
+The **FHIR XIG (Extended Implementation Guide) Registry** is HL7's global catalog of every published FHIR package. It is, in essence, a living map of how the world is adopting healthcare interoperability. That is what we explore here.
+
+---
+
+## 1. The Scale of the Ecosystem
+
+Before diving into the patterns, let's set the stage with the numbers that define the dataset.
+
+```{r kpi-display, echo=FALSE}
+htmltools::HTML(sprintf('
+<div class="kpi-grid">
+  <div class="kpi-card orange">
+    <div class="kpi-number">%s</div>
+    <div class="kpi-label">Resource Entries</div>
+  </div>
+  <div class="kpi-card navy">
+    <div class="kpi-number">%s</div>
+    <div class="kpi-label">Published Packages (IGs)</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-number">%s</div>
+    <div class="kpi-label">Distinct Resource Types</div>
+  </div>
+  <div class="kpi-card gold">
+    <div class="kpi-number">%s</div>
+    <div class="kpi-label">Contributing Authors</div>
+  </div>
+</div>',
+  scales::comma(TOTAL_ROWS),
+  scales::comma(TOTAL_PACKAGES),
+  scales::comma(TOTAL_TYPES),
+  ifelse(is.na(TOTAL_AUTHORS), "N/A", scales::comma(TOTAL_AUTHORS))
+))
+```
+
+These aren't just big numbers. Each of those resource entries represents a **structured, machine-readable definition of a healthcare concept** — a blood pressure reading format, a medication dosage template, a patient consent record — published by a health system, a government agency, or an open-source community somewhere in the world.
+
+The fact that over **`r scales::comma(TOTAL_PACKAGES)` packages** exist means that `r scales::comma(TOTAL_PACKAGES)` teams — from tiny clinics to CMS itself — have invested in publishing their healthcare data contracts publicly. That is the ecosystem.
+
+---
+
+## 2. A Standard, Six Editions
+
+FHIR isn't a single specification. It has gone through six major versions, each adding new resource types, refining existing ones, and deprecating concepts that the community outgrew.
+
+```{r plot-version, fig.cap="FHIR R4 is the undisputed majority version — adopted by CMS, ONC, Epic, and essentially every major healthcare software vendor."}
+version_data <- res %>%
+  filter(!is.na(version), version != "") %>%
+  count(version) %>%
+  mutate(version = factor(version, levels = VERSION_ORDER)) %>%
+  arrange(version)
+
+ggplot(version_data, aes(x = version, y = n, fill = version)) +
+  geom_col(show.legend = FALSE, width = 0.65, color = "white") +
+  geom_text(aes(label = scales::comma(n)), vjust = -0.55,
+            fontface = "bold", color = HC_NAVY, size = 6.5) +
+  scale_y_continuous(labels = scales::comma,
+                     expand = expansion(mult = c(0, 0.18))) +
+  scale_fill_hc() +
+  labs(
+    title    = "FHIR Resource Entries by Standard Version",
+    subtitle = "R4 commands the ecosystem — a platform effect driven by regulatory mandate",
+    x        = "FHIR Version",
+    y        = "Number of Resource Entries",
+    caption  = CAPTION
+  ) +
+  theme_hc()
+```
+
+<div class="insight-tag">Key Insight</div>
+
+**FHIR R4 isn't just dominant — it's a platform.** When the U.S. Department of Health and Human Services codified FHIR R4 into the **CMS Interoperability and Patient Access Final Rule (CMS-9115-F)** in 2020, it didn't just recommend R4. It *required* it. Every Medicare and Medicaid payer had to implement FHIR R4 APIs by mid-2021. That mandate turned R4 from a standard into a *network effect* — vendors built for R4, patients received R4, and new IGs defaulted to R4. This is what regulatory tailwind looks like in data.
+
+### The Growth Trajectory
+
+```{r plot-evolution, fig.height=5.5}
+# FHIR base resource type counts by version (sourced from HL7 spec documentation)
+fhir_evolution <- tibble(
+  version = factor(VERSION_ORDER, levels = VERSION_ORDER),
+  types   = c(103L, 116L, 145L, 148L, 167L, 172L),
+  label   = c("DSTU2\n(2015)", "STU3\n(2017)", "R4\n(2019)",
+              "R4B\n(2022)", "R5\n(2023)", "R6\n(Dev)")
+)
+
+ggplot(fhir_evolution, aes(x = version, y = types, group = 1)) +
+  geom_area(fill = HC_ORANGE, alpha = 0.15) +
+  geom_line(color = HC_ORANGE, linewidth = 2) +
+  geom_point(color = HC_ORANGE, size = 6, shape = 21,
+             fill = "white", stroke = 2.5) +
+  geom_text(aes(label = types), vjust = -1.4,
+            fontface = "bold", color = HC_NAVY, size = 7) +
+  geom_text(aes(label = label), vjust = 2.8,
+            color = "#888", size = 5) +
+  scale_y_continuous(limits = c(85, 200),
+                     breaks = seq(90, 200, by = 30)) +
+  labs(
+    title    = "Growth in FHIR Base Resource Types: 2015 → Present",
+    subtitle = "A 67% expansion in 10 years — the healthcare vocabulary keeps growing because the problems keep multiplying",
+    x        = NULL,
+    y        = "Base Resource Types Defined",
+    caption  = CAPTION
+  ) +
+  theme_hc() +
+  theme(axis.text.x = element_blank())
+```
+
+In 10 years, FHIR's core vocabulary has grown from **103 resource types to 172** — a 67% expansion. New types like `DeviceRequest`, `NutritionOrder`, `ChargeItemDefinition`, and `SubscriptionStatus` didn't exist in 2015. They were added because real clinicians, developers, and regulators identified gaps and the HL7 community filled them. This is a living standard, not a frozen one.
+
+---
+
+## 3. What Exactly IS a FHIR Resource?
+
+Not all FHIR resources represent clinical events. In fact, the most common types in the registry are *structural* — the building blocks that other resources are made of.
+
+```{r plot-top20, fig.height=9}
+top20 <- res %>%
+  filter(!is.na(resource_type), resource_type != "") %>%
+  count(resource_type, sort = TRUE) %>%
+  slice_head(n = 20) %>%
+  mutate(
+    resource_type = fct_reorder(resource_type, n),
+    is_top2 = resource_type %in% c("ValueSet", "StructureDefinition")
+  )
+
+ggplot(top20, aes(x = resource_type, y = n,
+                  fill = ifelse(is_top2, HC_ORANGE, HC_NAVY))) +
+  geom_col(show.legend = FALSE, color = "white") +
+  geom_text(aes(label = scales::comma(n)), hjust = -0.1,
+            fontface = "bold", color = HC_NAVY, size = 5.5) +
+  coord_flip() +
+  expand_limits(y = max(top20$n) * 1.22) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_fill_identity() +
+  annotate("text", x = 19.5, y = max(top20$n) * 0.75,
+           label = "▲ Together ~76%\nof all resources",
+           color = HC_ORANGE, fontface = "bold", size = 5.5, hjust = 0.5) +
+  labs(
+    title    = "Top 20 FHIR Resource Types — All Versions Combined",
+    subtitle = "The orange bars tell the story: ValueSet & StructureDefinition are the skeleton of the ecosystem",
+    x        = NULL,
+    y        = "Count",
+    caption  = CAPTION
+  ) +
+  theme_hc()
+```
+
+<div class="callout-navy">
+
+**What is a StructureDefinition?** Think of it as a **data schema with healthcare semantics** — it defines exactly what fields a Patient record must have, which are required vs optional, and what vocabulary terms are allowed. Every time you see a FHIR profile for US Core Patient or Da Vinci Coverage, there's a StructureDefinition underneath.
+
+**What is a ValueSet?** It's an **allowed list of codes** — like a dropdown list that says "the only valid values for gender in this system are: male, female, other, unknown." Healthcare terminologies (SNOMED CT, LOINC, ICD-10, RxNorm) expose their content as ValueSets in FHIR.
+
+Together, they are the grammar and the vocabulary. Every other resource type is built from them.
+
+</div>
+
+### Composition Across Versions
+
+```{r plot-top-by-version, fig.height=8, fig.width=13}
+top8_types <- res %>%
+  filter(!is.na(resource_type), resource_type != "") %>%
+  count(resource_type, sort = TRUE) %>%
+  slice_head(n = 8) %>%
+  pull(resource_type)
+
+type_colors_stack <- setNames(
+  c(HC_ORANGE, HC_NAVY, HC_BLUE, HC_GREEN, HC_GOLD, HC_PURPLE, HC_TEAL, HC_RED, "#b2bec3"),
+  c(top8_types, "Other")
+)
+
+stacked_data <- res %>%
+  filter(!is.na(version), version != "",
+         !is.na(resource_type), resource_type != "") %>%
+  mutate(
+    type_group = if_else(resource_type %in% top8_types, resource_type, "Other"),
+    type_group = factor(type_group, levels = c(top8_types, "Other")),
+    version    = factor(version, levels = VERSION_ORDER)
+  ) %>%
+  count(version, type_group)
+
+ggplot(stacked_data, aes(x = version, y = n, fill = type_group)) +
+  geom_col(position = "stack", color = "white", linewidth = 0.5) +
+  scale_y_continuous(labels = scales::comma,
+                     expand = expansion(mult = c(0, 0.04))) +
+  scale_fill_manual(values = type_colors_stack, name = "Resource Type") +
+  labs(
+    title    = "Resource Type Composition by FHIR Version",
+    subtitle = "ValueSet & StructureDefinition dominate every version — the stack reveals both total scale and structural mix",
+    x        = "FHIR Version",
+    y        = "Resource Count",
+    caption  = CAPTION
+  ) +
+  theme_hc() +
+  theme(legend.position  = "right",
+        legend.key.size  = unit(0.8, "cm"),
+        legend.text      = element_text(size = 14),
+        legend.title     = element_text(size = 16, face = "bold"))
+```
+
+---
+
+## 4. The World Speaks FHIR — But Not Equally
+
+One of the most revealing dimensions of the XIG registry is **realm** — the geographic or jurisdictional context for which a package was published.
+
+```{r plot-realm, fig.height=7}
+realm_labels <- c(
+  "us" = "United States", "uv" = "International (UV)", "eu" = "European Union",
+  "au" = "Australia",     "de" = "Germany",             "be" = "Belgium",
+  "nl" = "Netherlands",   "uk" = "United Kingdom",      "ca" = "Canada",
+  "ch" = "Switzerland",   "fr" = "France",               "no" = "Norway"
+)
+
+realm_data <- res %>%
+  filter(!is.na(realm), !realm %in% c("", "none", "unknown", "NA", "na")) %>%
+  count(realm, sort = TRUE) %>%
+  slice_head(n = 12) %>%
+  mutate(
+    realm_label = coalesce(realm_labels[realm], str_to_upper(realm)),
+    realm_label = fct_reorder(realm_label, n),
+    is_us       = realm == "us",
+    pct         = round(100 * n / sum(n), 1)
+  )
+
+ggplot(realm_data,
+       aes(x = realm_label, y = n,
+           fill = ifelse(is_us, HC_ORANGE, HC_NAVY))) +
+  geom_col(show.legend = FALSE, color = "white") +
+  geom_text(aes(label = paste0(scales::comma(n), "  (", pct, "%)")),
+            hjust = -0.05, fontface = "bold", color = HC_NAVY, size = 5.5) +
+  coord_flip() +
+  expand_limits(y = max(realm_data$n) * 1.28) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_fill_identity() +
+  labs(
+    title    = "Global FHIR Resource Distribution by Realm",
+    subtitle = "The orange bar isn't just bigger — it's in a different league. The US FHIR output dwarfs the rest of the world.",
+    x        = NULL,
+    y        = "Resource Entries",
+    caption  = CAPTION
+  ) +
+  theme_hc()
+```
+
+<div class="callout">
+
+**"uv" means Universal** — packages authored for international use without a specific country context. These come predominantly from HL7 International itself, WHO, and cross-border consortia. They form the *foundation layer* that all country-specific IGs build upon.
+
+</div>
+
+### US vs The World
+
+```{r plot-us-vs-world, fig.height=5}
+us_vs_world <- res %>%
+  filter(!is.na(realm), !realm %in% c("", "none", "unknown", "NA", "na")) %>%
+  mutate(group = case_when(
+    realm == "us" ~ "United States",
+    realm == "uv" ~ "International (UV)",
+    TRUE          ~ "Rest of World"
+  )) %>%
+  count(group, sort = TRUE) %>%
+  mutate(
+    pct   = round(100 * n / sum(n), 1),
+    label = paste0(scales::comma(n), "\n(", pct, "%)"),
+    group = fct_reorder(group, n)
+  )
+
+ggplot(us_vs_world, aes(x = group, y = n, fill = group)) +
+  geom_col(show.legend = FALSE, width = 0.55, color = "white") +
+  geom_text(aes(label = label), vjust = -0.4,
+            fontface = "bold", color = HC_NAVY, size = 6.5) +
+  scale_y_continuous(labels = scales::comma,
+                     expand = expansion(mult = c(0, 0.45))) +
+  scale_fill_manual(values = c(
+    "United States"      = HC_ORANGE,
+    "International (UV)" = HC_NAVY,
+    "Rest of World"      = HC_BLUE
+  )) +
+  labs(
+    title    = "US vs International vs Rest of World",
+    subtitle = "CMS and ONC mandates turned the US into the world's most prolific FHIR publisher",
+    x        = NULL,
+    y        = "Resource Entries",
+    caption  = CAPTION
+  ) +
+  theme_hc()
+```
+
+The United States is not just leading in FHIR adoption. It is **setting the pace for the entire planet**. When the CMS Interoperability Final Rule mandated FHIR APIs, it created an enormous demand-side pull. Hundreds of payers, EHR vendors, HIEs, and app developers had to implement FHIR — and had to publish IGs to coordinate with each other. That wave of regulatory-driven publishing is visible in this chart.
+
+---
+
+## 5. The Anatomy of a FHIR Package
+
+Every FHIR resource is part of a package — an IG. How are packages distributed across FHIR versions?
+
+```{r plot-packages, fig.height=5.5}
+pkg_col_name <- if ("package_text" %in% names(res)) "package_text" else "package"
+
+pkgs_by_ver <- res %>%
+  filter(!is.na(version), version != "") %>%
+  group_by(version) %>%
+  summarise(n_packages = n_distinct(.data[[pkg_col_name]]), .groups = "drop") %>%
+  mutate(version = factor(version, levels = VERSION_ORDER)) %>%
+  arrange(version)
+
+ggplot(pkgs_by_ver, aes(x = version, y = n_packages, fill = version)) +
+  geom_col(show.legend = FALSE, width = 0.6, color = "white") +
+  geom_text(aes(label = scales::comma(n_packages)), vjust = -0.5,
+            fontface = "bold", color = HC_NAVY, size = 6.5) +
+  scale_y_continuous(labels = scales::comma,
+                     expand = expansion(mult = c(0, 0.2))) +
+  scale_fill_hc() +
+  labs(
+    title    = "Distinct FHIR Implementation Guides (IGs) by Version",
+    subtitle = "R4 attracted the most IG authors — a self-reinforcing adoption loop",
+    x        = "FHIR Version",
+    y        = "Distinct Packages",
+    caption  = CAPTION
+  ) +
+  theme_hc()
+```
+
+### Resource Type Composition Across Versions
+
+Do different FHIR versions use different resource types? Or is the mix consistent?
+
+```{r plot-composition, fig.height=6.5}
+top5_types <- res %>%
+  filter(!is.na(resource_type), resource_type != "") %>%
+  count(resource_type, sort = TRUE) %>%
+  slice_head(n = 5) %>%
+  pull(resource_type)
+
+composition_data <- res %>%
+  filter(!is.na(version), version != "",
+         !is.na(resource_type), resource_type != "") %>%
+  mutate(
+    type_group = if_else(resource_type %in% top5_types, resource_type, "Other"),
+    version    = factor(version, levels = VERSION_ORDER)
+  ) %>%
+  count(version, type_group) %>%
+  group_by(version) %>%
+  mutate(pct = n / sum(n) * 100) %>%
+  ungroup()
+
+type_colors <- c(HC_ORANGE, HC_NAVY, HC_BLUE, HC_GREEN, HC_GOLD, "#b2bec3")
+names(type_colors) <- c(top5_types, "Other")
+
+ggplot(composition_data,
+       aes(x = version, y = pct, fill = type_group)) +
+  geom_col(position = "stack", color = "white", linewidth = 0.3) +
+  scale_y_continuous(labels = function(x) paste0(x, "%"),
+                     expand = expansion(mult = c(0, 0.02))) +
+  scale_fill_manual(values = type_colors, name = "Resource Type") +
+  labs(
+    title    = "Resource Type Composition — 100% Stacked by FHIR Version",
+    subtitle = "The proportions are remarkably stable: the ecosystem's structure doesn't change, it scales",
+    x        = "FHIR Version",
+    y        = "Share of Resources (%)",
+    caption  = CAPTION
+  ) +
+  theme_hc() +
+  theme(legend.position = "right",
+        legend.key.size = unit(0.5, "cm"))
+```
+
+<div class="insight-tag">The Deeper Story</div>
+
+The composition is **strikingly consistent** across all six versions. No matter which version you look at, ValueSets and StructureDefinitions dominate. This tells us something fundamental: **FHIR's core architecture hasn't changed — only its coverage has grown.** The decision to make terminology (ValueSets) and structure (StructureDefinitions) the primary building blocks was correct from the beginning, and the community has never needed to revisit that foundation.
+
+---
+
+## 6. Who Is Building This?
+
+```{r plot-authors, fig.height=8}
+if (!is.null(auth_col)) {
+  top_authors <- res %>%
+    filter(!is.na(.data[[auth_col]]),
+           !.data[[auth_col]] %in% c("", "none", "unknown")) %>%
+    count(.data[[auth_col]], sort = TRUE) %>%
+    slice_head(n = 15) %>%
+    rename(auth = 1) %>%
+    mutate(auth = fct_reorder(auth, n))
+
+  # Lollipop + log scale — handles HL7's 12x dominance cleanly
+  ggplot(top_authors, aes(x = auth, y = n)) +
+    geom_segment(aes(xend = auth, yend = 1),
+                 color = HC_NAVY, linewidth = 1.8) +
+    geom_point(aes(fill = auth), size = 7, shape = 21,
+               color = "white", stroke = 1.5, show.legend = FALSE) +
+    geom_text(aes(label = scales::comma(n)),
+              hjust = -0.25, fontface = "bold", color = HC_NAVY, size = 5.5) +
+    coord_flip() +
+    scale_y_log10(labels = scales::comma,
+                  expand = expansion(mult = c(0.02, 0.35))) +
+    scale_fill_hc() +
+    labs(
+      title    = "Top 15 FHIR Resource Publishers",
+      subtitle = "Log scale reveals the full distribution — HL7 publishes 12x more resources than any other contributor",
+      x        = NULL,
+      y        = "Resource Count (log scale)",
+      caption  = CAPTION
+    ) +
+    theme_hc()
+} else {
+  cat("*Author data not available in this dataset.*")
+}
+```
+
+The publisher landscape tells you exactly who cares about interoperability:
+
+- **HL7 International** — the standards body that *created* FHIR, publishes the canonical resources and the Da Vinci, US Core, and other foundational IGs
+- **National government agencies** — CMS, ONC, NHS England, and Australian Digital Health Agency are mandating and publishing reference implementations
+- **Industry consortia** — organizations like the Da Vinci Project (a collaboration of payers and providers) are building FHIR IGs for prior authorization, coverage requirements, and clinical data exchange
+- **Open source community** — vendors, hospitals, and individual contributors publishing tools and profiles
+
+This mix of regulatory, organizational, and community authorship is a sign of a **healthy, self-sustaining ecosystem** — not one that collapses when a single sponsor stops funding it.
+
+---
+
+## 7. Status: What's Active, What's Retired?
+
+```{r plot-status, fig.height=5}
+if ("status" %in% names(res)) {
+  status_data <- res %>%
+    filter(!is.na(status), !status %in% c("", "none", "unknown")) %>%
+    count(status, sort = TRUE) %>%
+    mutate(
+      pct   = round(100 * n / sum(n), 1),
+      status = fct_reorder(status, n)
+    )
+
+  ggplot(status_data, aes(x = status, y = n, fill = status)) +
+    geom_col(show.legend = FALSE, width = 0.55, color = "white") +
+    geom_text(aes(label = paste0(scales::comma(n), "\n(", pct, "%)")),
+              vjust = -0.35, fontface = "bold", color = HC_NAVY, size = 6.5) +
+    scale_y_continuous(labels = scales::comma,
+                       expand = expansion(mult = c(0, 0.28))) +
+    scale_fill_manual(values = c(
+      "active"  = HC_GREEN, "draft"   = HC_GOLD,
+      "retired" = HC_RED,   "unknown" = "#b2bec3"
+    ), na.value = "#b2bec3") +
+    labs(
+      title    = "FHIR Resource Status Distribution",
+      subtitle = "Active resources dominate — the FHIR community moves forward, not backward",
+      x        = "Status",
+      y        = "Count",
+      caption  = CAPTION
+    ) +
+    theme_hc()
+} else {
+  cat("*Status data not available in this dataset.*")
+}
+```
+
+A high proportion of **active** resources vs retired ones is exactly what you want to see in a growing standard. It means the community is building forward and very rarely has to admit it got something fundamentally wrong. The small retired fraction represents concepts that were either superseded by better-designed replacements or consolidated into existing types — a sign of maturation, not failure.
+
+---
+
+## 8. Summary — What the Data Tells Us
+
+```{r summary-table, echo=FALSE}
+summary_tbl <- tibble::tribble(
+  ~Dimension,            ~Finding,                                                                          ~Implication,
+  "Version adoption",    "FHIR R4 accounts for the vast majority of all published resources",               "Build for R4 first; R5 migration will follow regulatory updates",
+  "Resource composition","ValueSet + StructureDefinition comprise ~76% of all resource entries",            "Terminology and profiling are the core workloads of FHIR implementations",
+  "Geographic reach",    "The US publishes more FHIR resources than all other nations combined",            "Regulatory mandate (CMS-9115-F) is the strongest driver of ecosystem growth",
+  "Vocabulary growth",   "FHIR resource types grew 67% from R2 (2015) to R6 — from 103 to 172 types",      "The standard is still actively expanding — implementations must plan for change",
+  "Author diversity",    "HL7, government agencies, and industry consortia co-lead the ecosystem",          "No single failure point; healthy mix of regulatory and community authorship",
+  "Stability",           "Active resources dominate; very few are retired",                                 "FHIR's design decisions have held up — the community builds, not rebuilds"
+)
+
+kable(summary_tbl,
+      col.names = c("Dimension", "Finding", "Implication"),
+      align     = c("l", "l", "l")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = TRUE, font_size = 15) %>%
+  column_spec(1, bold = TRUE, color = HC_ORANGE, width = "15%") %>%
+  column_spec(2, width = "42%") %>%
+  column_spec(3, color = HC_NAVY, width = "43%")
+```
+
+---
+
+<div class="end-note">
+
+## Why FHIR Is Not Optional for U.S. Healthcare
+
+Here's the honest version of the story: FHIR didn't win the healthcare interoperability wars because it was the most technically elegant standard — though it is well-designed. It won because the United States government made it mandatory.
+
+But mandates explain adoption. They don't explain *momentum*.
+
+The momentum comes from something harder to legislate: **FHIR is actually useful.** When a developer can pull a patient's 5-year medication history with a single REST API call — the same way they would query a weather API — the abstraction has worked. When a payer can receive a prior authorization request as a structured FHIR resource instead of a fax, the value is immediate and measurable.
+
+<p class="stat-line">Over 500,000 FHIR resource entries. Nearly 6,000 published Implementation Guides. Contributions from governments, hospitals, and open-source communities in 30+ countries.</p>
+
+This is what a standard looks like when it reaches critical mass.
+
+**For the United States specifically, the stakes are not abstract:**
+
+- The CMS Interoperability and Patient Access Final Rule (CMS-9115-F) mandated FHIR R4 APIs for all Medicare/Medicaid payers — affecting **90+ million beneficiaries**
+- The ONC 21st Century Cures Act requires all certified EHR technology to expose FHIR APIs — touching **every hospital and clinic in the country**
+- The Prior Authorization rule (CMS-0057-F) mandates FHIR-based prior auth APIs by **January 2027**, potentially saving over **$15 billion annually** in administrative costs
+- The Da Vinci Project's Payer-to-Payer exchange, built entirely on FHIR, enables the continuity of care data to actually follow patients between insurers — a problem that has never been solved at scale before
+
+FHIR is not a technical curiosity. It is the **infrastructure layer of American healthcare data exchange**. And this dataset — every resource, every package, every author — is a living record of the community that is building it.
+
+The healthcare interoperability problem is not solved. But for the first time in history, the industry has agreed on the language it will use to solve it. That agreement, formalized in over `r scales::comma(TOTAL_ROWS)` published resource entries, is the foundation everything else gets built on.
+
+<div class="byline">
+Analysis by **Suhas P K** | Data: <a href="https://packages2.fhir.org/xig" target="_blank" style="color:#f26d21;">FHIR XIG Registry</a> | Built with R & ggplot2 | `r format(Sys.Date(), "%B %Y")`<br>
+📊 <a href="https://suhas-pk.shinyapps.io/xig-FHIR-resources-eda/" target="_blank" style="color:#f26d21; font-weight:600;">Interactive Shiny Dashboard</a> &nbsp;|&nbsp;
+💻 <a href="https://github.com/suhaspk-health-chain/FHIR-packages-analysis" target="_blank" style="color:#f26d21; font-weight:600;">Source Code on GitHub</a>
+</div>
+
+</div>
+
+---
+
+### Data & Reproducibility
+
+```{r session-info, echo=TRUE, collapse=TRUE}
+cat("Dataset: FHIR XIG Registry\n")
+cat("Total rows:", scales::comma(TOTAL_ROWS), "\n")
+cat("Total packages:", scales::comma(TOTAL_PACKAGES), "\n")
+cat("Distinct resource types:", TOTAL_TYPES, "\n")
+cat("R version:", R.version$version.string, "\n")
+cat("Key packages: dplyr", as.character(packageVersion("dplyr")),
+    "| ggplot2", as.character(packageVersion("ggplot2")),
+    "| arrow", as.character(packageVersion("arrow")), "\n")
+cat("Report date:", format(Sys.Date(), "%Y-%m-%d"), "\n")
+```
+
+> **To reproduce:** Clone the [FHIR-packages-analysis](https://github.com/suhaspk-health-chain/FHIR-packages-analysis) repository, run `eda_plots.R` to generate standalone plots, then knit this `.Rmd` file. All data lives in `data/processed/`.

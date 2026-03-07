@@ -4,6 +4,10 @@
 
 > An EDA project by **Suhas P K**
 
+[![Live Dashboard](https://img.shields.io/badge/Shiny-Live%20Dashboard-f26d21?style=flat-square&logo=r)](https://suhas-pk.shinyapps.io/xig-FHIR-resources-eda/)
+[![RPubs Report](https://img.shields.io/badge/RPubs-EDA%20Report-0c223f?style=flat-square&logo=r)](https://rpubs.com/suhasPK/xig-FHIR-resources-eda)
+[![GitHub](https://img.shields.io/badge/GitHub-Source%20Code-333?style=flat-square&logo=github)](https://github.com/suhaspk-health-chain/FHIR-packages-analysis)
+
 ---
 
 ## Overview
@@ -12,7 +16,7 @@ This project scrapes, cleans, and analyses every publicly registered FHIR packag
 
 The primary output is an **interactive R Shiny dashboard** with nine tabs covering version evolution, global landscape, text/NLP analysis, statistical hypothesis testing, and full browsable data tables.
 
-A companion article (`outputs/fhir_ecosystem_blog.md`) summarises the five key findings for a non-technical audience.
+A companion **[EDA report on RPubs](https://rpubs.com/suhasPK/xig-FHIR-resources-eda)** tells the full story in Veritasium style — from a hook to data insights — for a technical and non-technical audience alike.
 
 ---
 
@@ -148,12 +152,12 @@ Raw JSON files (`data/raw/`) are gitignored due to size. Processed CSVs in `data
 | Tab | What it shows |
 |-----|--------------|
 | **Overview** | KPI cards + interactive plot builder (bar, grouped, stacked; facet support; status deduplication) |
-| **Evolution** | Resources added/removed per FHIR version transition (R2→R3→R4→R4B→R5→R6) |
+| **Evolution** | Resources added/removed per FHIR version transition (R2 -> R3 -> R4 -> R4B -> R5 -> R6) |
 | **Global Landscape** | Which countries publish the most IGs; resource counts by realm |
 | **Data Hierarchy** | How 75k resources break down by version and type |
 | **Resource Catalog** | Every resource type ranked by count with percentages |
 | **US Deep Dive** | United States FHIR version adoption and clinical category breakdown |
-| **Text Analysis** | NLP on resource titles — word frequency, publisher patterns, lifecycle, working groups |
+| **Text Analysis** | NLP on resource titles: word frequency, publisher patterns, lifecycle, working groups |
 | **Hypothesis Lab** | Six pre-built statistical tests (Wilcoxon, Chi-square, Proportion) with plain-English verdicts |
 | **Data Tables** | Full browsable dataset, presence matrix, stable resources |
 | **Verification** | Data provenance, methodology, and source links |
@@ -190,6 +194,16 @@ Every plot downloaded from the dashboard includes a dynamic caption line encodin
 - **Apache Arrow / Parquet** — efficient data storage
 - **bslib** — Bootstrap 5 theming
 - **jsonlite / readr** — data I/O
+
+---
+
+## Live Links
+
+| | Link |
+|---|---|
+| Interactive Dashboard | https://suhas-pk.shinyapps.io/xig-FHIR-resources-eda/ |
+| EDA Report (RPubs) | https://rpubs.com/suhasPK/xig-FHIR-resources-eda |
+| Source Code (GitHub) | https://github.com/suhaspk-health-chain/FHIR-packages-analysis |
 
 ---
 

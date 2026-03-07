@@ -10,10 +10,10 @@ mod_data_tables_ui <- function(id) {
       style="background:#f9fafb; border-left:4px solid #666; padding:12px 18px; margin-bottom:14px;",
       p(style="margin:0; font-size:14px; line-height:1.6; color:#444;",
         strong("Browse the raw data: "),
-        tags$b("Resources"), " — Every resource definition scraped from the FHIR package registry (75K rows). ",
-        tags$b("Presence Matrix"), " — Which official resource types exist in which FHIR version (R2–R6). ",
-        tags$b("Stable Resources"), " — Types present in 4 or more versions, indicating long-term stability. ",
-        tags$b("Raw Preview"), " — First 100 rows of the original unprocessed data."
+        tags$b("Resources"), " - Every resource definition scraped from the FHIR package registry (75K rows). ",
+        tags$b("Presence Matrix"), " - Which official resource types exist in which FHIR version (R2-R6). ",
+        tags$b("Stable Resources"), " - Types present in 4 or more versions, indicating long-term stability. ",
+        tags$b("Raw Preview"), " - First 100 rows of the original unprocessed data."
       )
     ),
     tabsetPanel(

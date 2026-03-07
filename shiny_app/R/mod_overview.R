@@ -15,7 +15,16 @@ mod_overview_ui <- function(id) {
                style = "background:#ffffff; border:2px solid #f26d21; padding:24px;",
                h2("FHIR Packages Ecosystem Explorer", style="color:#f26d21; text-align:center; margin-bottom:4px;"),
                p("A beginner-friendly look at how the global healthcare interoperability community uses FHIR",
-                 style="text-align:center; color:#666; font-size:15px; margin-bottom:16px;"),
+                 style="text-align:center; color:#666; font-size:15px; margin-bottom:8px;"),
+               p(
+                 tags$a(
+                   href   = "https://rpubs.com/suhasPK/xig-FHIR-resources-eda",
+                   target = "_blank",
+                   style  = "color:#f26d21; font-weight:600; font-size:14px; text-decoration:none;",
+                   icon("file-alt"), " Read the full EDA report on RPubs"
+                 ),
+                 style = "text-align:center; margin-bottom:14px;"
+               ),
                hr(style="border-color:#f26d21;"),
 
                fluidRow(
@@ -27,7 +36,7 @@ mod_overview_ui <- function(id) {
                      " that lets hospital systems, insurance apps, and government health agencies all talk to each other."
                    ),
                    p(style="font-size:15px; line-height:1.7;",
-                     "A ", strong("FHIR Package"), " is like a published rulebook — it bundles together the exact
+                     "A ", strong("FHIR Package"), " is like a published rulebook that bundles together the exact
                      definitions, value lists, and data templates that a specific healthcare system agrees to follow.
                      This dataset captures ", strong("every public FHIR package"), " from the global registry."
                    )
@@ -36,17 +45,17 @@ mod_overview_ui <- function(id) {
                    h4(icon("map"), " How to Read This Dashboard", style="color:#0c223f;"),
                    tags$ul(style="font-size:15px; line-height:2.0;",
                      tags$li(icon("layer-group"), " ",
-                       strong("Overview (this page)"), " — Big-picture numbers and what they mean"),
+                       strong("Overview (this page)"), " - Big-picture numbers and what they mean"),
                      tags$li(icon("code-branch"), " ",
-                       strong("Evolution"), " — How FHIR resource types have changed across versions"),
+                       strong("Evolution"), " - How FHIR resource types have changed across versions"),
                      tags$li(icon("globe"), " ",
-                       strong("Global Landscape"), " — Which countries contribute the most IGs"),
+                       strong("Global Landscape"), " - Which countries contribute the most IGs"),
                      tags$li(icon("sitemap"), " ",
-                       strong("Data Hierarchy"), " — How packages nest into resource types"),
-                     tags$li(icon("flag-usa"), " ",
-                       strong("US Deep Dive"), " — The United States is the biggest contributor"),
+                       strong("Data Hierarchy"), " - How packages nest into resource types"),
+                     tags$li(icon("flag"), " ",
+                       strong("US Deep Dive"), " - The United States is the biggest contributor"),
                      tags$li(icon("table"), " ",
-                       strong("Data Tables"), " — Browse the raw data yourself")
+                       strong("Data Tables"), " - Browse the raw data yourself")
                    )
                  )
                )
@@ -75,7 +84,7 @@ mod_overview_ui <- function(id) {
         tags$i(class="fa fa-boxes fa-2x", style="color:#0c223f;"),
         h4("Published Packages", style="margin-top:8px; color:#0c223f;"),
         h2(textOutput(ns("kpi_packages")), style="color:#0c223f; font-weight:bold; font-size:2em;"),
-        p("Unique FHIR Implementation Guides — each is a versioned rulebook for a specific use case",
+        p("Unique FHIR Implementation Guides, each a versioned rulebook for a specific use case",
           style="color:#666; font-size:13px; line-height:1.4;")
       )),
       column(3, wellPanel(
@@ -131,7 +140,7 @@ mod_overview_ui <- function(id) {
             column(3,
               tags$div(style="color:white;",
                 tags$b(style="color:#f26d21; font-size:1.1em;", "FHIR keeps growing"),
-                tags$p("From 103 resource types in FHIR R2 (DSTU2) to 167 in R5 — a 62% growth
+                tags$p("From 103 resource types in FHIR R2 (DSTU2) to 167 in R5, a 62% growth
                         in the vocabulary of healthcare data exchange over a decade.",
                        style="font-size:13px; line-height:1.5; margin-top:4px;")
               )
@@ -147,6 +156,9 @@ mod_overview_ui <- function(id) {
         style="background:#f0f8ff; border:1px solid #d0e8f7; padding:10px;",
         p(strong("Data Snapshot:"),
           " Built: ", textOutput(ns("meta_built_at"), inline = TRUE),
+          " | Source: ",
+          tags$a("HL7 FHIR XIG Registry", href = "https://packages2.fhir.org/xig",
+                 target = "_blank", style = "color:#f26d21; font-weight:600;"),
           " | Filter by realm below to update all metrics above.",
           style="margin:0; color:#0c223f;")
       ))
@@ -157,7 +169,7 @@ mod_overview_ui <- function(id) {
     fluidRow(
       column(12, h3("Interactive Visualization",
                     style="color:#f26d21; text-align:center; margin-bottom:4px;")),
-      column(12, p("Build any chart you want — pick axes, measure, grouping, facets, and filters independently.",
+      column(12, p("Build any chart you want: pick axes, measure, grouping, facets, and filters independently.",
                    style="text-align:center; color:#666; font-size:14px; margin-bottom:18px;"))
     ),
 
@@ -422,16 +434,18 @@ mod_overview_server <- function(id) {
                             .data[[fill_var]] != "", .data[[fill_var]] != "none")
         group_cols <- c(x_var, fill_var)
       }
-      if (!is.null(facet_var) && facet_var != x_var && facet_var != fill_var) {
+      facet_added <- FALSE
+      if (!is.null(facet_var) && facet_var != x_var && (is.null(fill_var) || facet_var != fill_var)) {
         df <- df %>% filter(!is.na(.data[[facet_var]]),
                             .data[[facet_var]] != "", .data[[facet_var]] != "none")
         group_cols <- unique(c(group_cols, facet_var))
+        facet_added <- TRUE
       }
 
       counts <- compute_measure(df, group_cols, measure, total_n)
       names(counts)[1] <- "label"
       if (!is.null(fill_var) && fill_var != x_var) names(counts)[2] <- "fill_label"
-      if (!is.null(facet_var)) {
+      if (facet_added) {
         facet_col_idx <- if (!is.null(fill_var) && fill_var != x_var) 3 else 2
         if (ncol(counts) >= facet_col_idx) names(counts)[facet_col_idx] <- "facet_label"
       }

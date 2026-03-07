@@ -83,7 +83,7 @@ mod_nlp_ui <- function(id) {
       tags$code("publisher.fhir.realm.name"),
       " (e.g. ", tags$code("hl7.fhir.us.core"), "). ",
       "The left chart extracts the publisher prefix to show who produces the most resources. ",
-      "The right chart shows the top title words per realm — revealing vocabulary differences between countries."
+      "The right chart shows the top title words per realm, revealing vocabulary differences between countries."
     ),
     fluidRow(
       column(6, wellPanel(style = "padding:10px;",
@@ -101,13 +101,13 @@ mod_nlp_ui <- function(id) {
     hr(style = "border-color:#ddd; margin:20px 0;"),
 
     # --- Section 3: Resource lifecycle ---
-    h3(icon("recycle"), " Resource Lifecycle — Status by FHIR Version", style = "color:#0c223f;"),
+    h3(icon("recycle"), " Resource Lifecycle: Status by FHIR Version", style = "color:#0c223f;"),
     p(style = "color:#555; font-size:14px; margin-bottom:14px;",
       "Resources move through a lifecycle: ",
       tags$span(style = "color:#4a90d9; font-weight:bold;", "draft"),
-      " (work in progress) \u2192 ",
+      " (work in progress) -> ",
       tags$span(style = "color:#33d17a; font-weight:bold;", "active"),
-      " (published standard) \u2192 ",
+      " (published standard) -> ",
       tags$span(style = "color:#d63031; font-weight:bold;", "retired"),
       " (superseded). ",
       "Each resource is counted once using its most recent recorded status. ",
@@ -125,7 +125,7 @@ mod_nlp_ui <- function(id) {
     p(style = "color:#555; font-size:14px; margin-bottom:14px;",
       "HL7 International is divided into Working Groups (WGs), each responsible for a clinical or ",
       "administrative domain. The WG behind the most resources shows where implementation guide ",
-      "activity is concentrated — a proxy for where standardisation energy is being spent."
+      "activity is concentrated, a proxy for where standardisation energy is being spent."
     ),
     fluidRow(
       column(8, wellPanel(style = "padding:10px;",
@@ -136,14 +136,14 @@ mod_nlp_ui <- function(id) {
           style = "background:#fff8f3; border:1px solid #f26d21;",
           h5("Common Working Groups:", style = "color:#f26d21; margin-top:0;"),
           tags$ul(style = "font-size:13px; color:#444; line-height:2.0; padding-left:18px;",
-            tags$li(strong("fhir-i"), " — FHIR Infrastructure"),
-            tags$li(strong("pc"), " — Patient Care"),
-            tags$li(strong("oo"), " — Orders & Observations"),
-            tags$li(strong("fm"), " — Financial Management"),
-            tags$li(strong("sd"), " — Structured Documents"),
-            tags$li(strong("vocab"), " — Vocabulary / Terminology"),
-            tags$li(strong("phx"), " — Pharmacy"),
-            tags$li(strong("cds"), " — Clinical Decision Support")
+            tags$li(strong("fhir-i"), " - FHIR Infrastructure"),
+            tags$li(strong("pc"), " - Patient Care"),
+            tags$li(strong("oo"), " - Orders & Observations"),
+            tags$li(strong("fm"), " - Financial Management"),
+            tags$li(strong("sd"), " - Structured Documents"),
+            tags$li(strong("vocab"), " - Vocabulary / Terminology"),
+            tags$li(strong("phx"), " - Pharmacy"),
+            tags$li(strong("cds"), " - Clinical Decision Support")
           )
         )
       )
@@ -212,7 +212,7 @@ mod_nlp_server <- function(id) {
         expand_limits(y = max(wc$n, na.rm = TRUE) * 1.2) +
         scale_fill_healthchain() +
         labs(title = "Most Frequent Terms in Resource Titles",
-             subtitle = paste0("Top ", input$top_n_words, " terms — stop words & FHIR structural terms removed"),
+             subtitle = paste0("Top ", input$top_n_words, " terms (stop words & FHIR structural terms removed)"),
              x = NULL, y = "Occurrences") +
         hc_theme()
     })
