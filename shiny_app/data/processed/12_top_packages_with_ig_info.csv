@@ -1,0 +1,21 @@
+"package","ig_name","ig_realm","fhir_version","resource_count"
+"us.nlm.vsac",NA,NA,"R4",7877
+"hl7.terminology","HL7 Terminology","International","R5",4351
+"us.cdc.phinvads",NA,NA,"R4",1967
+"fhir.dicom",NA,NA,"R4",1411
+"hl7.fhir.uv.xver",NA,NA,"R5",1272
+"hl7.fhir.uv.xver-r5.r4b",NA,NA,"R4B",1190
+"smart.who.int.anc","WHO SMART Guidelines - ANC","International","R4",1073
+"dk.kip.rkkp.fhir.ig.core",NA,NA,"R4",994
+"nhsd.assets.stu3",NA,NA,"R3",905
+"fdpg.query_profiles",NA,NA,"R4",836
+"hl7.fhir.uv.extensions","FHIR Core Extensions Registry","International","R5",823
+"hl7.fhir.uv.xver-r2.r4b",NA,NA,"R4B",701
+"eng.fhir.profile.dev",NA,NA,"R4",642
+"hl7.fhir.uv.xver-r3.r4b",NA,NA,"R4B",640
+"MyHIE.v4-test",NA,NA,"R4",609
+"dk.ehealth.sundhed.fhir.ig.core","FUT Infrastructure","DK","R4",551
+"rki.demis.laboratory.strict",NA,NA,"R4",550
+"nictiz.fhir.nl.r4.zib2020",NA,NA,"R4",545
+"ans.fr.terminologies",NA,NA,"R4",544
+"smart.who.int.hiv",NA,NA,"R4",517

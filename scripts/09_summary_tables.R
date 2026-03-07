@@ -75,12 +75,15 @@ save_table(presence_matrix, "resource_presence_matrix")
 save_table(added_removed, "resources_added_removed_by_transition")
 
 # 5️⃣ Combined metadata overview
+# Note: columns were renamed in 02_load_and_clean.R (package_text -> package, identity_text -> identity)
+pkg_col  <- if ("package"  %in% names(resources)) resources$package  else resources$package_text
+id_col   <- if ("identity" %in% names(resources)) resources$identity else resources$identity_text
 overview <- tibble(
-  total_resources = nrow(resources),
-  unique_packages = n_distinct(resources$package_text),
-  unique_resources = n_distinct(resources$identity_text),
-  total_versions = n_distinct(resources$version),
-  total_authors = n_distinct(resources$auth)
+  total_resources  = nrow(resources),
+  unique_packages  = n_distinct(pkg_col),
+  unique_resources = n_distinct(id_col),
+  total_versions   = n_distinct(resources$version),
+  total_authors    = n_distinct(resources$auth)
 )
 save_table(overview, "dataset_overview")
 
@@ -96,43 +99,53 @@ save_both <- function(df, fname) {
   write.csv(df, file.path(TABLE_DIR, fname), row.names = FALSE)
 }
 
-# ---- Flatten list-columns and build export tables ----
-flatten_vec <- function(x) if (length(x) == 0 || is.null(x)) "" else paste(sort(as.character(x)), collapse = ", ")
+# Helper: count comma-separated items in a string
+count_str <- function(x) {
+  if (is.na(x) || trimws(as.character(x)) == "") return(0L)
+  length(strsplit(as.character(x), ",\\s*")[[1]])
+}
 
-diffs_flat <- diffs %>%
-  mutate(
-    added   = vapply(added,   flatten_vec, character(1)),
-    removed = vapply(removed, flatten_vec, character(1))
-  )
+# ---- Build derived tables from already-loaded CSVs ----
 
 # Long presence (useful for dashboards/pivots)
-heat_long <- res_matrix |>
-  tidyr::pivot_longer(-resource, names_to = "version", values_to = "present") |>
-  dplyr::mutate(version = factor(version, levels = c("R2","R3","R4","R4B","R5","R6")))
+# Uses 'presence_matrix' loaded above (not 'res_matrix')
+if (!is.null(presence_matrix) && nrow(presence_matrix) > 0) {
+  heat_long <- presence_matrix |>
+    tidyr::pivot_longer(-resource, names_to = "version", values_to = "present") |>
+    dplyr::mutate(
+      version = factor(version, levels = c("R2", "R3", "R4", "R4B", "R5", "R6")),
+      present = as.integer(present)
+    )
 
-# Stable resources (present in ≥ 4 versions)
-stable_tbl <- heat_long |>
-  dplyr::group_by(resource) |>
-  dplyr::summarise(versions_present = sum(present, na.rm = TRUE), .groups = "drop") |>
-  dplyr::filter(versions_present >= 4) |>
-  dplyr::arrange(desc(versions_present), resource)
+  # Stable resources (present in >= 4 versions)
+  stable_tbl <- heat_long |>
+    dplyr::group_by(resource) |>
+    dplyr::summarise(versions_present = sum(present, na.rm = TRUE), .groups = "drop") |>
+    dplyr::filter(versions_present >= 4) |>
+    dplyr::arrange(desc(versions_present), resource)
 
-# Added/Removed counts per transition (used for plots too)
-delta_counts <- diffs %>%
-  dplyr::transmute(
-    transition = factor(transition, levels = paste(c("R2","R3","R4","R4B","R5"),
-                                                   "→", c("R3","R4","R4B","R5","R6"))),
-    added   = lengths(added),
-    removed = lengths(removed)
-  )
+  save_both(as.data.frame(presence_matrix),  "resource_presence_matrix.csv")
+  save_both(as.data.frame(heat_long),        "resource_presence_long.csv")
+  save_both(as.data.frame(stable_tbl),       "stable_resources_ge4.csv")
+}
 
-# ---- Save all tables to both locations ----
-save_both(summary_counts,                       "summary_resource_counts_by_version.csv")
-save_both(res_matrix,                           "resource_presence_matrix.csv")
-save_both(diffs_flat,                           "resources_added_removed_by_transition.csv")
-save_both(delta_counts,                         "delta_counts.csv")
-save_both(stable_tbl,                           "stable_resources_ge4.csv")
-save_both(heat_long,                            "resource_presence_long.csv")
+# Added/Removed counts per transition
+# Uses 'added_removed' loaded above (strings, not list-columns)
+if (!is.null(added_removed) && nrow(added_removed) > 0) {
+  delta_counts <- added_removed %>%
+    dplyr::transmute(
+      transition = factor(transition, levels = paste(c("R2", "R3", "R4", "R4B", "R5"),
+                                                     "\u2192", c("R3", "R4", "R4B", "R5", "R6"))),
+      added   = vapply(added,   count_str, integer(1)),
+      removed = vapply(removed, count_str, integer(1))
+    )
+  save_both(as.data.frame(added_removed), "resources_added_removed_by_transition.csv")
+  save_both(as.data.frame(delta_counts),  "delta_counts.csv")
+}
+
+if (!is.null(summary_counts) && nrow(summary_counts) > 0) {
+  save_both(as.data.frame(summary_counts), "summary_resource_counts_by_version.csv")
+}
 
 
 # ---- Completion message ----

@@ -1,5 +1,5 @@
-source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts/00_setup_packages.R"); 
-source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts/01_config.R")
+source("scripts/00_setup_packages.R")
+source("scripts/01_config.R")
 
 res <- arrow::read_parquet(file.path(OUT_DIR, "processed/fhir_resources.parquet"))
 

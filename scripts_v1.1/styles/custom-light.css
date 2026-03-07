@@ -1,0 +1,331 @@
+/* =========================================================
+   HEALTH CHAIN LIGHT THEME (30% Blue | 30% Orange | 40% White)
+   Author: Suhas P. K
+   ========================================================= */
+
+/* ---------- Root Brand Colors ---------- */
+:root {
+  --hc-blue: #004188;
+  --hc-blue-soft: rgba(0, 65, 136, 0.15);
+  --hc-orange: #f26d21;
+  --hc-orange-soft: rgba(242, 109, 33, 0.15);
+  --hc-white: #ffffff;
+  --hc-light-gray: #f5f7fa;
+  --hc-dark-gray: #1a1a1a;
+}
+
+/* =========================================================
+   Base Layout
+   ========================================================= */
+body {
+  background-color: var(--hc-white);
+  color: var(--hc-dark-gray);
+  font-family: 'Segoe UI', 'Roboto', sans-serif;
+  line-height: 1.6;
+}
+
+/* ---------- Headings ---------- */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--hc-blue);
+  font-weight: 600;
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+}
+
+h1 {
+  border-bottom: 3px solid var(--hc-orange);
+  padding-bottom: 0.3em;
+  text-shadow: 0 0 3px var(--hc-orange-soft);
+}
+
+/* =========================================================
+   Navigation Bar
+   ========================================================= */
+.navbar, .quarto-navbar {
+  background-color: var(--hc-blue);
+  border-bottom: 3px solid var(--hc-orange);
+}
+
+.navbar a, .navbar-brand, .quarto-navbar a {
+  color: var(--hc-white) !important;
+  font-weight: 500;
+}
+
+.navbar a:hover {
+  color: var(--hc-orange) !important;
+  text-shadow: 0 0 4px var(--hc-orange-soft);
+}
+
+/* =========================================================
+   Footer
+   ========================================================= */
+footer, .page-footer {
+  background-color: var(--hc-light-gray);
+  color: var(--hc-dark-gray);
+  padding: 1rem 0;
+  border-top: 3px solid var(--hc-orange);
+  text-align: center;
+}
+
+/* =========================================================
+   Links
+   ========================================================= */
+a {
+  color: var(--hc-blue);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+a:hover {
+  color: var(--hc-orange);
+  text-shadow: 0 0 3px var(--hc-orange-soft);
+}
+
+/* =========================================================
+   Buttons
+   ========================================================= */
+.btn, .btn-primary {
+  background-color: var(--hc-blue);
+  border-color: var(--hc-blue);
+  color: var(--hc-white);
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  background-color: var(--hc-orange);
+  border-color: var(--hc-orange);
+  color: var(--hc-white);
+  box-shadow: 0 0 8px var(--hc-orange-soft);
+}
+
+/* =========================================================
+   Tables
+   ========================================================= */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--hc-white);
+  color: var(--hc-dark-gray);
+}
+
+th, td {
+  border: 1px solid #e0e0e0;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+thead {
+  background-color: var(--hc-blue);
+  color: var(--hc-white);
+  border-bottom: 3px solid var(--hc-orange);
+}
+
+table tr:nth-child(even) {
+  background-color: var(--hc-light-gray);
+}
+
+table tr:hover {
+  background-color: var(--hc-orange-soft);
+  transition: background-color 0.2s ease;
+}
+
+caption, .table-caption {
+  color: var(--hc-blue);
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 0.5em;
+}
+
+/* =========================================================
+   FIXED + IMPROVED CODE CHUNKS FOR QUARTO / R MARKDOWN
+   HEALTH CHAIN LIGHT THEME
+   ========================================================= */
+
+/* ---------- Code input (R code, Python, SQL, etc.) ---------- */
+pre.sourceCode,
+div.sourceCode,
+code.sourceCode {
+  background-color: #f5f7fa !important;      /* soft light gray */
+  color: #1a1a1a !important;                 /* dark readable text */
+  border-left: 4px solid var(--hc-blue);     /* brand blue accent */
+  border-radius: 6px;
+  font-size: 15px !important;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  padding: 1rem 1.2rem;
+  margin: 1.2em 0;
+  overflow-x: auto;
+  box-shadow: none !important;
+}
+
+/* ================================
+   Simple Dark Mode for Code Chunks
+   ================================ */
+
+/* Code input (R/Knitr, Python, etc) */
+pre.sourceCode, code.sourceCode, div.sourceCode {
+  background-color: #232f2f !important;    /* soft, plain dark */
+  color: #ececec !important;               /* light gray text */
+  border: none !important;                 /* no accent */
+  border-radius: 6px;
+  font-size: 16px !important;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  margin: 1.25em 0;
+  padding: 1em 1em;
+  box-shadow: none;
+  overflow-x: auto;
+}
+
+/* Output blocks */
+pre.output, pre.console, div.knitr-output, .knitr-output {
+  background-color: #292b36 !important;    /* just a bit lighter for output */
+  color: #ececec !important;
+  border: none !important;
+  border-radius: 6px;
+  font-size: 16px !important;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  margin: 1.25em 0;
+  padding: 1em 1em;
+  box-shadow: none;
+  overflow-x: auto;
+}
+
+/* Inline code (in paragraphs, tables, headings) */
+code:not(.sourceCode) {
+  background-color: #1b212a !important;    /* minimal background, blends in */
+  color: #efe6d7 !important;
+  border-radius: 4px;
+  border: none !important;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 1em;
+  padding: 0.11em 0.28em;
+  font-weight: 500;
+}
+
+/* Remove all custom token coloring */
+.sourceCode span { color: inherit !important; }
+/* Remove highlight from nested code */
+pre code, pre.output code, pre.sourceCode code {
+  background: transparent !important;
+  color: inherit !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+
+
+/* =========================================================
+   Blockquotes
+   ========================================================= */
+blockquote {
+  border-left: 5px solid var(--hc-orange);
+  background-color: #fff8f3;
+  padding: 1em;
+  color: #333333;
+  font-style: italic;
+  box-shadow: inset 2px 0 6px var(--hc-orange-soft);
+}
+
+/* =========================================================
+   Sidebar
+   ========================================================= */
+.sidebar {
+  background-color: #162c4c;
+  color: var(--text-main);
+}
+
+.sidebar .sidebar-title {
+  color: var(--accent-main);
+  font-weight: bold;
+}
+
+.sidebar a {
+  color: #dce6f1;
+}
+
+.sidebar a:hover {
+  color: var(--accent-main);
+}
+
+
+/* =========================================================
+   Alerts
+   ========================================================= */
+
+/* ---------- Alerts ---------- */
+.alert-info {
+  background-color: #1c456e;
+  color: #e7f1ff;
+  border-left: 5px solid var(--accent-main);
+}
+
+.alert-warning {
+  background-color: #7d4e00;
+  color: #fff0d1;
+  border-left: 5px solid #ff9800;
+}
+
+/* ---------- Forms ---------- */
+input, select, textarea {
+  background-color: #19324e;
+  color: #ffffff;
+  border: 1px solid var(--accent-main);
+  border-radius: 4px;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent-hover);
+  box-shadow: 0 0 5px var(--accent-main);
+}
+
+/* =========================================================
+   Miscellaneous
+   ========================================================= */
+hr {
+  border: 1px solid #dddddd;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 5px;
+}
+
+strong {
+  color: var(--hc-blue);
+}
+
+/* =========================================================
+   Scrollbar Styling
+   ========================================================= */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--hc-blue);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--hc-orange);
+}
+
+/* =========================================================
+   Visual Accents (30% Orange Layer)
+   ========================================================= */
+h1, h2, h3 {
+  text-shadow: 0 0 3px var(--hc-orange-soft);
+}
+
+.btn:hover, .navbar a:hover, .sidebar a:hover {
+  text-shadow: 0 0 4px var(--hc-orange-soft);
+}
+
+table tr:hover, blockquote {
+  box-shadow: 0 0 6px var(--hc-orange-soft);
+}
+
+pre.sourceCode, pre.output {
+  box-shadow: 0 0 8px var(--hc-orange-soft);
+}

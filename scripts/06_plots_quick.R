@@ -3,9 +3,9 @@
 # ============================================
 
 # --- Setup ---
-source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts/00_setup_packages.R")
-source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts/01_config.R")
-source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts/05_theme_healthchain.R")
+source("scripts/00_setup_packages.R")
+source("scripts/01_config.R")
+source("scripts/05_theme_healthchain.R")
 
 # Load cleaned resource-level dataset
 res <- arrow::read_parquet(file.path(OUT_DIR, "processed/fhir_resources.parquet"))
@@ -15,7 +15,7 @@ p1 <- res %>%
   count(version) %>%
   ggplot(aes(x = version, y = n, fill = version)) +
   geom_col(show.legend = FALSE) +
-  geom_text(aes(label = scales::comma(n)), vjust = -0.3, color = "#f0f4f8", size = 4) +
+  geom_text(aes(label = scales::comma(n)), vjust = -0.3, color = "#0c223f", size = 4) +
   labs(
     title = "FHIR Resources by Version",
     x = "FHIR Version",
@@ -43,7 +43,7 @@ p2 <- top_data %>%
   geom_text(
     aes(label = scales::comma(n)),
     hjust = -0.1,
-    color = "#f0f4f8",
+    color = "#0c223f",
     size = 4
   ) +
   expand_limits(y = max(top_data$n) * 1.15) +
@@ -78,7 +78,7 @@ p3 <- top_by_version %>%
   geom_text(
     aes(label = scales::comma(n)),
     hjust = -0.1,
-    color = "#f0f4f8",
+    color = "#0c223f",
     size = 3
   ) +
   labs(
@@ -92,8 +92,8 @@ ggsave(
   file.path(FIG_DIR, "top_resource_types_by_version.png"),
   p3,
   width = 16,
-  height = 10,
-  dpi = 250
+  height = 12,
+  dpi = 200
 )
 
 # --- 4️⃣ Summary Log ---

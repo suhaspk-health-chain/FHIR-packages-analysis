@@ -1,0 +1,184 @@
+---
+title: "An Initial XIG-FHIR Data Exploration and Summary - Part 3"
+subtitle: "Exploring FHIR Version Adoption in XIG Resources in US."
+author: "Suhas. P. K"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 6
+    theme: cosmo
+    highlight: zenburn
+    css: styles/custom-dark-lite-v1.2.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(fig.align = "center")
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(showtext)
+font_add_google("Poppins", "poppins")
+showtext_auto()
+library(knitr)
+library(rmarkdown)
+library(kableExtra)
+library(DT)
+library(glue)
+# Now source all other setup files AFTER fonts are initialized
+source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts_v1.1/00_setup_packages.R")
+source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts_v1.1/05_theme_healthchain.R")
+theme_set(theme_healthchain())
+
+```
+
+```{r echo=FALSE, warning=FALSE, message=TRUE,data_loading}
+# ---- Define JSON path ----
+DATA_JSON <- here("data", "raw", "xig_resource_v1.2.json")
+
+# ---- Read JSON directly (as array) ----
+df <- fromJSON(DATA_JSON, flatten = TRUE)
+df <- as_tibble(df)
+
+# ---- Initial Clean data: NA handling, column renaming, and type corrections ----
+df <- df %>%
+  mutate(across(everything(), ~na_if(str_trim(as.character(.)), ""))) %>%
+  rename(
+    package      = package_text,
+    package_url  = package_href,
+    identity     = identity_text,
+    identity_url = identity_href,
+    title        = name_title
+  ) %>%
+  mutate(
+    version = str_to_upper(version),       # e.g., R4, R5
+    date = suppressWarnings(parse_date_time(date, c("Ymd", "Ym", "Y"))), # robust date parse
+    status = str_to_lower(status),
+    wg     = str_to_lower(wg),
+    realm  = str_to_lower(realm),
+    auth   = str_to_lower(auth)
+  )
+
+# ---- As factor conversion ----
+df <- df %>%
+  mutate(
+    status   = as.factor(status),
+    version  = as.factor(version),
+    auth     = as.factor(auth),
+    wg       = as.factor(wg),
+    date_raw = as.factor(date_raw) # to experiment a new column called date_raw is factorised.
+  )
+```
+
+
+# Previously
+
+> How do version choices vary by realm/country group (realm_group)?
+
+```{r}
+# Get min–max years actually present in df
+year_range <- df %>%
+  mutate(year = year(as.Date(date))) %>%
+  filter(!is.na(year)) %>%
+  summarise(
+    min_year = min(year),
+    max_year = max(year)
+  )
+min_year <- year_range$min_year
+max_year <- year_range$max_year
+
+# Realm × Version summary
+realm_version <- df %>%
+  count(realm, version = as.character(version), name = "n") %>%
+  group_by(realm) %>%
+  mutate(
+    total_realm = sum(n),
+    pct = 100 * n / total_realm
+  ) %>%
+  ungroup()
+
+# Optional: focus on top realms by volume
+top_realms <- realm_version %>%
+  group_by(realm) %>%
+  summarise(total = sum(n), .groups = "drop") %>%
+  arrange(desc(total)) %>%
+  slice_head(n = 10) %>%
+  pull(realm)
+
+realm_version_top <- realm_version %>%
+  filter(realm %in% top_realms)
+
+# Total resources in plotted realms (for subtitle)
+total_resources_top <- sum(realm_version_top$n)
+
+# Version-wise counts (for legend labels)
+version_counts <- realm_version_top %>%
+  group_by(version) %>%
+  summarise(total_version = sum(n), .groups = "drop")
+
+# Legend labels: "R4 (51075)" etc.
+version_labels <- version_counts %>%
+  mutate(label = paste0(version, " (", total_version, ")")) %>%
+  { setNames(.$label, .$version) }
+
+# Consistent version colors
+version_cols <- c(
+  "R3"  = "#e74c3c",
+  "R4"  = "#f39c12",
+  "R4B" = "#16a085",
+  "R5"  = "#2980b9",
+  "R6"  = "#8e44ad"
+)
+
+ggplot(
+  realm_version_top,
+  aes(x = reorder(realm, -total_realm), y = pct, fill = version)
+) +
+  geom_col(color = "white", width = 0.75) +
+  geom_text(
+    data = subset(realm_version_top, pct >= 10),
+    aes(label = paste0(round(pct, 1), "%")),
+    position = position_stack(vjust = 0.5),
+    color = "black",
+    size = 4.6,
+    family = "poppins"
+  ) +
+  scale_y_continuous(labels = percent_format(scale = 1)) +
+  scale_fill_manual(
+    values = version_cols,
+    labels = version_labels
+  ) +
+  labs(
+    title = glue("FHIR Version Mix by Realm Group from {min_year} to {max_year}"),
+    subtitle = glue(
+      "Share of each FHIR version within major realm/country groups (Total resources = {total_resources_top})"
+    ),
+    x = "Realm / Country Group",
+    y = "Share of Resources (%)",
+    fill = "FHIR Version",
+    caption = glue(
+      "XIG/FHIR resource data.\n Note: Resources from {min_year}-{max_year} may include duplicates, as resource status can change over time."
+    )
+  ) +
+  theme_healthchain(base_size = 16) +
+  theme(
+    axis.text.x  = element_text(angle = 45, hjust = 1),
+    plot.caption = element_text(hjust = 0, margin = margin(t = 8))
+  )
+
+
+```
+
+This chart compares the FHIR version mix within major realm or country groups, showing what share of each realm’s resources use R3, R4, R4B, R5, or R6. Most realms, including the US, EU, AU, and others, overwhelmingly favor R4, often above 90%, indicating global convergence on R4 as the default version. A few regions (like the UV test realm and NA/unspecified group) show more diversity, with non-trivial shares of R5 and occasional use of R4B or R3, suggesting experimentation or transition activity. Overall, regional differences exist at the margins, but the dominant story is broad, cross-realm standardization on FHIR R4.
+
+Note: __"UV stands for “Universal Realm” and is used for global or realm-agnostic implementation guides intended to work across multiple countries or jurisdictions, not tied to a single national realm"__ 
+
+So when the plot shows the `uv` realm, it is summarizing resources from universal/“global” implementation guides (like hl7.fhir.uv.ips, hl7.fhir.uv.extensions, etc.), rather than a specific country such as `us`, `nl`, or `dk`.
+
+
+
+

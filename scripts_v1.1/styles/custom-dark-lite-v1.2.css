@@ -1,0 +1,309 @@
+/* ============================================================
+   Health Chain Dark-Lite Theme (RPubs R Markdown Version)
+   Poppins for content, Blue input chunks, Orange output chunks
+   Fully fixed comments + string colors
+   ============================================================ */
+
+/* Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+
+/* ---------- Base Colors ---------- */
+:root {
+  --background-main: #0c223f;
+  --background-panel: #123358;
+  --text-main: #ff8c42;
+  --text-muted: #305070;
+ /* --accent-main: #f26d21; /* ORANGE */ 
+  --accent-hover: #ff8c42;
+  --border-color: #305070;
+  --link-color: #ffffff;
+
+  /* Syntax Colors */
+  --code-comment: #fff7bf;   /* soft warm yellow */
+  --code-string:  #ffed92;   /* bright yellow */
+  --code-keyword: #ffffff;   /* pure white */
+  --code-default: #ffeedd;   /* cream */
+  --code-input-bg: #1e3a5e;  /* deep navy */
+}
+
+/* ---------- Page Layout ---------- */
+body {
+  background-color: var(--background-main);
+  color: var(--text-main);
+  font-family: 'Poppins', sans-serif;
+  line-height: 1.6;
+  font-size: 16px;
+}
+
+/* ---------- Headings ---------- */
+h1, h2, h3, h4, h5, h6 {
+  color: white;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+}
+
+/* ---------- Links ---------- */
+a { color: var(--link-color); }
+a:hover { color: var(--accent-hover); }
+
+/* ============================================================
+   INPUT CODE (blue)
+   RPubs uses: <div class="sourceCode"><pre class="sourceCode r"><code>
+   ============================================================ */
+div.sourceCode pre,
+pre.sourceCode,
+code.sourceCode,
+div.sourceCode code {
+  background-color: var(--code-input-bg) !important;
+  color: var(--code-default) !important;
+  padding: 0.75rem 1rem !important;
+  border-radius: 6px !important;
+  font-family: "Fira Code", "Courier New", monospace !important;
+  margin: 1rem 0 !important;
+  overflow-x: auto !important;
+}
+
+/* Fix nested <code> inherited color */
+div.sourceCode pre code {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+/* ============================================================
+   OUTPUT CODE (orange)
+   RPubs output blocks use: <pre class="r"><code>## ...</code></pre>
+   ============================================================ */
+
+pre.r,
+pre.r-output,
+pre.output {
+  background-color: var(--accent-main) !important;   /* ORANGE */
+  color: white !important;
+  padding: 1rem 1.25rem !important;
+  margin: 1rem 0 !important;
+  border-radius: 6px !important;
+  border-left: 5px solid #ffae73 !important;
+  font-family: "Fira Code", "Courier New", monospace !important;
+  font-size: 15px !important;
+  line-height: 1.55 !important;
+  overflow-x: auto !important;
+}
+
+/* Code inside output must stay white */
+pre.r code,
+pre.r-output code,
+pre.output code {
+  background: transparent !important;
+  color: white !important;
+  padding: 0 !important;
+}
+
+/* ============================================================
+   SYNTAX HIGHLIGHTING FIX (RPubs / Pandoc classes)
+   These work for BOTH input and output
+   ============================================================ */
+
+/* COMMENTS: span.co */
+span.co {
+  color: var(--code-comment) !important;
+  font-style: italic;
+}
+
+/* STRINGS: span.st */
+span.st {
+  color: var(--code-string) !important;
+}
+
+/* KEYWORDS: span.kw */
+span.kw {
+  color: var(--code-keyword) !important;
+  font-weight: 600 !important;
+}
+
+/* NUMBERS: span.d? or span.fl */
+span.fl, span.dv {
+  color: #ffffff !important;
+}
+
+/* OPERATORS: span.op */
+span.op {
+  color: #ffffff !important;
+}
+
+/* DEFAULT TEXT */
+span.va, span.cn, span.dt, span.at {
+  color: var(--code-default) !important;
+}
+
+/* ============================================================
+   INLINE CODE (<code> inside paragraphs)
+   ============================================================ */
+p code, li code, td code, th code {
+  background-color: var(--code-input-bg);
+  color: var(--code-default);
+  padding: 0.12em 0.4em;
+  border-radius: 4px;
+  font-family: "Fira Code", "Courier New", monospace;
+}
+
+/* ============================================================
+   HEALTH CHAIN DARK MODE - DT TABLE: RESPONSIVE, COMPACT, CENTERED
+   ============================================================ */
+
+/* Compact DT Table, center page, limit width */
+table.dataTable {
+  background: #181b25 !important;
+  color: #f5f6fa !important;
+  font-family: 'Poppins', 'Segoe UI', sans-serif !important;
+  font-size: 0.95em !important;      /* Smaller font for table */
+  border-radius: 8px;
+  width: 92% !important;             /* Most sensible width, not full-page */
+  max-width: 370px !important;       /* Force compact maximum width */
+  min-width: 220px !important;       /* Prevent too narrow */
+  margin: 1.5em auto 1.5em auto !important;
+  table-layout: fixed !important;
+}
+
+/* Headings and cells, always center-aligned */
+.dataTable th, .dataTable td,
+table.dataTable thead tr th, table.dataTable tbody tr td {
+  text-align: center !important;
+  vertical-align: middle !important;
+  padding: 0.44em 0.4em !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+}
+
+/* Orange headers, dark text for header */
+table.dataTable th {
+  background-color: #fa8801 !important;
+  color: #181b25 !important;
+  font-weight: 600;
+  font-size: 1em !important;
+}
+
+/* Data cell text */
+table.dataTable td {
+  color: #f5f6fa !important;
+  background-color: #181b25 !important;
+  font-size: 0.98em !important;
+}
+
+/* Empty cell/NA styling */
+table.dataTable td:empty {
+  background-color: #232434 !important;
+}
+
+/* Filter input/selector in header: center and matched font */
+table.dataTable thead input, table.dataTable thead select {
+  text-align: center !important;
+  font-family: inherit !important;
+  font-size: 0.94em !important;
+}
+
+/* Caption perfectly centered and styled */
+table.dataTable caption {
+  caption-side: top;
+  text-align: center !important;
+  color: #f5f5f5 !important;
+  font-family: 'Poppins', 'Segoe UI', sans-serif !important;
+  font-size: 1.05em;
+  font-weight: 600;
+  margin-bottom: 0.6em;
+  margin-top: 0.2em;
+  letter-spacing: 0.2px;
+}
+
+/* Info, pagination, filter labels: white, smaller, centered */
+.dataTables_info,
+.dataTables_paginate,
+.dataTables_length label,
+.dataTables_filter label {
+  color: #ffffff !important;
+  text-align: center !important;
+  font-size: 0.96em !important;
+}
+
+/* Pagination buttons: white, compact */
+.dataTables_paginate .paginate_button {
+  color: #ffffff !important;
+  border: none !important;
+  background: #25262c !important;
+  font-weight: 500;
+  font-size: 0.96em !important;
+  min-width: 1.9em !important;
+  transition: background 0.2s, color 0.2s;
+}
+.dataTables_paginate .paginate_button.current,
+.dataTables_paginate .paginate_button:hover {
+  background: #fa8801 !important;
+  color: #181b25 !important;
+  border-radius: 4px;
+}
+
+body, .main-container, .container, .content, #content {
+  min-height: unset !important;
+  height: auto !important;
+  padding-bottom: 1.5em !important;
+  margin-bottom: 0 !important;
+}
+
+footer, .footer, #footer {
+  margin-top: 2em !important;
+  padding-bottom: 1em !important;
+}
+
+#TOC.tocify {
+  height: auto !important;
+  max-height: 90vh !important;
+}
+
+/* Fix DT header + filter row alignment */
+table.dataTable thead th,
+table.dataTable thead td {
+  padding: 6px 10px !important;   /* same padding for both rows */
+  border-bottom: 1px solid #305070 !important;
+  vertical-align: middle !important;
+}
+
+/* Filter row cells */
+table.dataTable thead tr:nth-child(2) th,
+table.dataTable thead tr:nth-child(2) td {
+  background-color: #123358 !important;   /* same as main header or slightly darker */
+  color: #f0f4f8 !important;
+  box-sizing: border-box !important;
+}
+
+/* Filter inputs full-width and centered */
+table.dataTable thead input[type="search"],
+table.dataTable thead input[type="text"],
+table.dataTable thead select {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background-color: #0c223f;
+  color: #f5f5f5;
+  border: 1px solid #305070;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+}
+
+/* Hide native clear (✕) icon in DT column filter inputs - WebKit browsers */
+table.dataTable thead input[type="search"]::-webkit-search-cancel-button,
+table.dataTable thead input[type="text"]::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* For Edge/Chromium generic clear buttons (fallback) */
+table.dataTable thead input[type="search"]::-ms-clear,
+table.dataTable thead input[type="text"]::-ms-clear {
+  display: none;
+}
+
+/* Ensure padding is OK after removing the icon */
+table.dataTable thead input[type="search"],
+table.dataTable thead input[type="text"] {
+  padding-right: 0.4rem;
+}
+

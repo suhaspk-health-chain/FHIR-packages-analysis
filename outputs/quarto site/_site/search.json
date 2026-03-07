@@ -1,0 +1,16 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "FHIR Packages Analysis",
+    "section": "",
+    "text": "Overview\nThis site documents the extraction, cleaning, EDA, and cross-version resource analysis of FHIR packages from packages2.fhir.org/xig.\n\n\n\nResources Count by FHIR Versions"
+  },
+  {
+    "objectID": "index.html#overview",
+    "href": "index.html#overview",
+    "title": "FHIR Packages Analysis",
+    "section": "Overview",
+    "text": "Overview\nThis site documents the extraction, cleaning, EDA, and cross-version resource analysis of FHIR packages from packages2.fhir.org/xig.\n\n\n\nResources Count by FHIR Versions"
+  }
+]

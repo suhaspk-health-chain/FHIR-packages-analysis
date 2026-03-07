@@ -1,0 +1,246 @@
+---
+title: "rough_notes2"
+author: "Suhas. P. K"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+# --- Setup ---
+source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts_v1.1/00_setup_packages.R")
+source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts_v1.1/05_theme_healthchain.R")
+```
+
+------------------------------------------------------------------------
+
+XIG-Resources JSON & NDJSON
+
+```{r warning=FALSE, message=TRUE,}
+# ---- Define JSON path (adjust as needed) ----
+DATA_JSON <- here("data", "raw", "xig_resource_v1.2.json")
+
+# ---- Read JSON directly (as array) ----
+df <- fromJSON(DATA_JSON, flatten = TRUE)
+df <- as_tibble(df)
+
+# ---- Clean data: NA handling, column renaming, and type corrections ----
+df <- df %>%
+  mutate(across(everything(), ~na_if(str_trim(as.character(.)), ""))) %>%
+  rename(
+    package      = package_text,
+    package_url  = package_href,
+    identity     = identity_text,
+    identity_url = identity_href,
+    title        = name_title
+  ) %>%
+  mutate(
+    version = str_to_upper(version),                       # e.g., R4, R5
+    date = suppressWarnings(parse_date_time(date, c("Ymd", "Ym", "Y"))), # robust date parse
+    status = str_to_lower(status),
+    wg     = str_to_lower(wg),
+    realm  = str_to_lower(realm),
+    auth   = str_to_lower(auth)
+  )
+
+# ---- Quick preview ----
+#print(head(df, 10))
+print(summary(df))
+
+
+```
+
+
+
+```{r}
+dim(df)
+```
+```{r}
+str(df)
+```
+
+```{r}
+# Specify columns of interest
+cols <- c("package", "status", "realm", "auth", "version")
+
+# Using pivot_longer and summarise in tidyverse style
+unique_counts <- df %>%
+  select(all_of(cols)) %>%
+  pivot_longer(cols = everything(), names_to = "column", values_to = "value") %>%
+  group_by(column) %>%
+  summarise(unique_count = n_distinct(value), .groups = "drop")
+
+print(unique_counts)
+
+```
+
+```{r}
+unique(df$auth)
+```
+```{r}
+unique(df$version)
+```
+```{r}
+unique(df$status)
+```
+
+```{r}
+uniq_pkg <- unique(df$package) %>% fil
+head(uniq_pkg)
+```
+
+
+```{r}
+filtered_table <- df %>%
+  filter(
+    package == "fhir.cdc.opioid-cds-r4",
+    version == "R4",
+    realm == "us",
+    auth == "hl7",
+    str_detect(identity, "^ActivityDefinition/")
+  ) %>%
+  select(package, identity, status, date) %>%
+  arrange(desc(date))   # Sort by date descending
+
+print(filtered_table)
+```
+```{r}
+pivot_status_year <- df %>%
+  filter(
+    version == "R4",
+    realm == "us",
+    auth == "hl7",
+    str_detect(identity, "^ActivityDefinition/")
+  ) %>%
+  mutate(year = year(date)) %>%
+  filter(year %in% c(2023, 2024, 2025)) %>%
+  select(package, identity, version, realm, auth, year, status) %>%
+  distinct(package, identity, version, realm, auth, year, status) %>%
+  pivot_wider(
+    names_from = year,          # columns: years
+    values_from = status,       # cell values: status
+    values_fn = ~ paste(unique(.), collapse = "; ")
+  )
+
+print(pivot_status_year)
+```
+
+
+```{r}
+
+status_year_table <- df %>%
+  filter(
+    version == "R4",
+    realm == "us",
+    auth == "hl7"#,
+    # str_detect(identity, "^ActivityDefinition/")
+  ) %>%
+  mutate(year = year(date)) %>%
+  group_by(package, identity, version, realm, auth) %>%
+  summarize(
+    min_date = min(date, na.rm = TRUE),
+    max_date = max(date, na.rm = TRUE),
+    status_by_year = list(tibble(year = year, status = status)),
+    .groups = "drop"
+  ) %>%
+  unnest(status_by_year) %>%
+  distinct(package, identity, version, realm, auth, year, status) %>%
+  pivot_wider(
+    names_from = year,
+    values_from = status,
+    values_fn = ~ paste(unique(.), collapse = "; ")
+  )
+
+head(status_year_table)
+
+
+```
+
+```{r}
+corrected_status_year_table <- df %>%
+  filter(
+    version == "R4",
+    realm == "us",
+    auth == "hl7",
+    str_detect(identity, "^ActivityDefinition/")
+  ) %>%
+  mutate(year = year(date)) %>%
+  group_by(package, identity, version, realm, auth) %>%
+  summarize(
+    min_date = min(date, na.rm = TRUE),
+    max_date = max(date, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    df %>%
+      filter(
+        version == "R4",
+        realm == "us",
+        auth == "hl7",
+        str_detect(identity, "^ActivityDefinition/")
+      ) %>%
+      mutate(year = year(date)) %>%
+      select(package, identity, version, realm, auth, year, status) %>%
+      distinct(package, identity, version, realm, auth, year, status),
+    by = c("package", "identity", "version", "realm", "auth")
+  ) %>%
+  distinct(package, identity, version, realm, auth, min_date, max_date, year, status) %>%
+  pivot_wider(
+    names_from = year,
+    values_from = status,
+    values_fn = ~ paste(unique(.), collapse = "; "),
+    values_fill = ""
+  ) %>%
+  arrange(package, identity)
+
+print(corrected_status_year_table)
+
+```
+
+
+```{r}
+
+# Specify the package and identity
+packages_to_include <- c("fhir.r4.ukcore.stu3.currentbuild")
+identities_to_include <- c("CodeSystem/UKCore-NHSNumberVerificationStatusEngland")
+
+status_over_years <- df %>%
+  filter(
+    package %in% packages_to_include,
+    identity %in% identities_to_include
+  ) %>%
+  mutate(year = year(date)) %>%
+  distinct(package, identity, year, status) %>%
+  pivot_wider(
+    names_from = year,
+    values_from = status,
+    values_fn = ~ paste(unique(.), collapse = "; "), # Handles multiple statuses in a year
+    values_fill = "" # blank if no status recorded that year
+  )
+
+print(status_over_years)
+
+
+```
+
+```{r}
+status_over_years <- df %>%
+  filter(
+    package == "fhir.r4.ukcore.stu3.currentbuild",
+    identity == "CodeSystem/UKCore-NHSNumberVerificationStatusEngland"
+  ) %>%
+  mutate(year = year(date)) %>%
+  distinct(package, identity, year, status) %>%
+  pivot_wider(
+    names_from = year,
+    values_from = status,
+    values_fn = ~ paste(unique(.), collapse = "; "),
+    values_fill = ""
+  )
+
+print(status_over_years)
+```
+

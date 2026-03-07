@@ -1,0 +1,822 @@
+---
+title: "notes"
+output: html_document
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(showtext)
+font_add_google("Poppins", "poppins")
+showtext_auto()
+
+# --- Setup ---
+source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts_v1.1/00_setup_packages.R")
+source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts_v1.1/05_theme_healthchain.R")
+
+theme_set(theme_healthchain())
+# Make all ggplot2 visualizations here (all should use Poppins with no warning)
+
+```
+
+------------------------------------------------------------------------
+
+XIG-Resources JSON & NDJSON
+
+```{r warning=FALSE, message=TRUE,}
+# ---- Define JSON path (adjust as needed) ----
+DATA_JSON <- here("data", "raw", "xig_resource_v1.2.json")
+
+# ---- Read JSON directly (as array) ----
+df <- fromJSON(DATA_JSON, flatten = TRUE)
+df <- as_tibble(df)
+
+# ---- Clean data: NA handling, column renaming, and type corrections ----
+df <- df %>%
+  mutate(across(everything(), ~na_if(str_trim(as.character(.)), ""))) %>%
+  rename(
+    package      = package_text,
+    package_url  = package_href,
+    identity     = identity_text,
+    identity_url = identity_href,
+    title        = name_title
+  ) %>%
+  mutate(
+    version = str_to_upper(version),                       # e.g., R4, R5
+    date = suppressWarnings(parse_date_time(date, c("Ymd", "Ym", "Y"))), # robust date parse
+    status = str_to_lower(status),
+    wg     = str_to_lower(wg),
+    realm  = str_to_lower(realm),
+    auth   = str_to_lower(auth)
+  )
+
+# ---- Quick preview ----
+#print(head(df, 10))
+print(summary(df))
+
+
+```
+
+------------------------------------------------------------------------
+
+```{r}
+na_summary <- df %>%
+  summarise(across(everything(), ~sum(is.na(.)))) %>%
+  pivot_longer(cols = everything(),
+               names_to = "Field",
+               values_to = "NA_Count") %>%
+  mutate(
+    Total = nrow(df),
+    NA_Percent = round((NA_Count / Total) * 100, 2)
+  ) %>%
+  arrange(desc(NA_Count))
+
+na_summary
+```
+
+```{r}
+skim(df)
+```
+
+```{r}
+na_bar <- df %>%
+  summarise(across(everything(), ~sum(is.na(.)))) %>%
+  pivot_longer(everything(), names_to = "Field", values_to = "NA_Count") %>%
+  mutate(NA_Percent = NA_Count / nrow(df) * 100)
+
+ggplot(na_bar, aes(x = reorder(Field, -NA_Percent), y = NA_Percent)) +
+  geom_col(fill = "#0073C2FF") +
+  geom_text(aes(label = paste0(round(NA_Percent, 1), "%")),
+            vjust = 0.5, hjust = -0.2 ,size = 3, fontface = "italic") +
+  labs(
+    title = "Percent of Missing Values per Field",
+    x = "Field",
+    y = "Percent Missing"
+  ) +
+  theme_healthchain(base_size = 14) +
+  theme(
+    legend.position = "none",
+    axis.text.x  = element_blank(),
+    axis.text.y  = element_text(size = 12),
+    axis.title.x = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(face = "bold", size = 12),
+    plot.title   = element_text(face = "bold", color = "#e86c09",
+                                hjust = 0.5, size = 18),
+    plot.margin  = margin(t = 25, r = 20, b = 10, l = 10)
+  ) +
+  coord_flip(clip = "off")
+
+```
+
+------------------------------------------------------------------------
+
+```{r}
+# ---- Year-wise counts with NA bin + color flag ----
+df_yearly <- df %>%
+  mutate(
+    year       = year(date),
+    year_label = if_else(is.na(year), "NA", as.character(year)),
+    bar_color  = if_else(is.na(year), "NA", "non-NA")
+  ) %>%
+  count(year_label, bar_color, name = "package_count") %>%
+  filter(package_count >= 10) %>%        # adjust threshold as needed
+  # order numerically, with NA bin at the end
+  mutate(year_num = suppressWarnings(as.numeric(year_label))) %>%
+  arrange(is.na(year_num), year_num)
+
+# ---- Plot ----
+p <- ggplot(df_yearly, aes(x = year_label, y = package_count, fill = bar_color)) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = package_count),
+    vjust = -0.3,
+    size = 2.8,
+    fontface = "italic",
+    color = "black"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "NA"    = "#e86c09",  # orange for NA bin
+      "non-NA" = "#0066B3"  # blue for all other years
+    ),
+    guide = "none"          # hide legend (optional)
+  ) +
+  labs(
+    title = "Year-wise FHIR Package Count",
+    x = "Year",
+    y = "Number of Packages"
+  ) +
+  theme_healthchain(base_size = 13) +
+  theme(
+    axis.text.x  = element_text(angle = 90, hjust = 1, vjust = 1, face = "bold"),
+    axis.text.y  = element_text(size = 0),
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    plot.title   = element_text(face = "bold", color = "#e86c09", hjust = 0.5)
+  ) 
+print(p)
+
+```
+
+```{r fig.width=7, fig.height=8 ,fig.cap="Summary Plot"}
+library(scales)
+
+# 1. Aggregate: package count per year
+year_totals <- df %>%
+  filter(!is.na(date)) %>%
+  mutate(year = year(date)) %>%
+  count(year, name = "total_packages") %>%
+  arrange(desc(total_packages))
+
+top_years <- year_totals %>%
+  slice_head(n = 6) %>%     # You asked for Top 6 years
+  pull(year)
+
+# 2. Prepare per-month summary for top 6 years
+df_top <- df %>%                      # <<< THIS IS df_top
+  filter(!is.na(date), year(date) %in% top_years) %>%
+  mutate(
+    year      = factor(year(date), levels = sort(top_years, decreasing = TRUE)),
+    month_val = month(date),
+    month_lab = factor(
+      format(date, "%b"),
+      levels = format(ISOdate(2000, 1:12, 1), "%b")
+    )
+  ) %>%
+  group_by(year, month_lab) %>%
+  summarise(package_count = n(), .groups = "drop")
+
+# 3. Clean: Remove months with zero counts inside each facet
+df_top_clean <- df_top %>%            # <<< cleaned version
+  group_by(year) %>%
+  filter(package_count > 0) %>%
+  ungroup()
+
+# 4. Horizontal Plot – preserving your settings
+p <- ggplot(df_top_clean, aes(x = month_lab, y = package_count)) +
+  geom_col(fill = "#0066B3", width = 0.25) +
+  geom_text(
+    aes(label = ifelse(package_count >= 50, package_count, "")),
+    hjust = -0.2,
+    vjust = 0.5,
+    size  = 3,
+    fontface = "italic",
+    angle = 0
+  ) +
+  labs(
+    title = "Month-wise FHIR Package Count (Top 6 Years)",
+    x = "Month",
+    y = "Number of Packages"
+  ) +
+  scale_y_continuous(
+    labels = comma,
+    expand = expansion(mult = c(0, 0.20))
+  ) +
+  facet_wrap(
+    ~ year,
+    nrow = 2,
+    ncol = 3,
+    scales = "free"
+  ) +
+  theme_healthchain(base_size = 14) +
+  theme(
+    axis.text.x  = element_text(angle = 0, hjust = 0.5, size = 0, face = "bold"),
+    axis.text.y  = element_text(size = 10),
+    axis.title.x = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(face = "bold", size = 12),
+    strip.text   = element_text(face = "bold", size = 14),
+    plot.title   = element_text(
+      face   = "bold",
+      color  = "#f26d21",
+      hjust  = 0.45,
+      size   = 18
+    ),
+    panel.grid.major.x = element_blank(),
+    plot.margin = margin(20, 30, 20, 20)
+  ) +
+  coord_flip(clip = "off")
+
+print(p)
+
+
+# SAVE WITH LARGER WIDTH
+#ggsave("top5_years_monthwise_FHIR_packages_wide.png",plot = p,
+#  width = 22,     # <<< make the figure much wider
+#  height = 8,     # height stays moderate
+#  dpi = 320
+#)
+
+```
+
+```{r echo =FALSE, fig.width=7, fig.height=8 ,fig.cap="Summary Plot 2"}
+# # 1. Aggregate: package count per year
+# year_totals <- df %>%
+#   filter(!is.na(date)) %>%
+#   mutate(year = year(date)) %>%
+#   count(year, name = "total_packages") %>%
+#   arrange(desc(total_packages))
+# 
+# top_years <- year_totals %>%
+#   slice_head(n = 6) %>%     # Top 6 years
+#   pull(year)
+# 
+# # 2. Prepare per-month summary for top 6 years
+# df_top <- df %>%
+#   filter(!is.na(date), year(date) %in% top_years) %>%
+#   mutate(
+#     year      = factor(year(date), levels = sort(top_years, decreasing = TRUE)),
+#     month_val = month(date),
+#     month_lab = factor(
+#       format(date, "%b"),
+#       levels = format(ISOdate(2000, 1:12, 1), "%b")
+#     )
+#   ) %>%
+#   group_by(year, month_lab) %>%
+#   summarise(package_count = n(), .groups = "drop")
+# 
+# # 3. Remove zero months
+# df_top_clean <- df_top %>%
+#   group_by(year) %>%
+#   filter(package_count > 0) %>%
+#   ungroup()
+# 
+# # 4. Compute average per year (for mean line)
+# avg_df <- df_top_clean %>%
+#   group_by(year) %>%
+#   summarise(avg_count = mean(package_count), .groups = "drop")
+# 
+# # 5. Plot with mean line per facet, keeping original scaling
+# p <- ggplot(df_top_clean, aes(x = month_lab, y = package_count)) +
+#   geom_col(fill = "#0066B3", width = 0.25) +
+#   geom_hline(
+#     data = avg_df,
+#     aes(yintercept = avg_count),
+#     inherit.aes = FALSE,
+#     color = "#f26d21",
+#     linewidth = 1.0,
+#     linetype = "dashed"
+#   ) +
+#   geom_text(
+#     aes(label = ifelse(package_count >= 50, package_count, "")),
+#     hjust = -0.2,
+#     vjust = 0.5,
+#     size  = 3,
+#     fontface = "italic",
+#     angle = 0
+#   ) +
+#   labs(
+#     title = "Month-wise FHIR Package Count (Top 6 Years)",
+#     x = "Month",
+#     y = "Number of Packages"
+#   ) +
+#   scale_y_continuous(
+#     labels = comma,
+#     expand = expansion(mult = c(0, 0.20))
+#   ) +
+#   facet_wrap(
+#     ~ year,
+#     nrow = 2,
+#     ncol = 3,
+#     scales = "free"   # ← keeps bars “full width” in each panel
+#   ) +
+#   theme_healthchain(base_size = 14) +
+#   theme(
+#     axis.text.x  = element_text(angle = 0, hjust = 0.5, size = 0, face = "bold"),
+#     axis.text.y  = element_text(size = 10),
+#     axis.title.x = element_text(face = "bold", size = 12),
+#     axis.title.y = element_text(face = "bold", size = 12),
+#     strip.text   = element_text(face = "bold", size = 14),
+#     plot.title   = element_text(
+#       face   = "bold",
+#       color  = "#f26d21",
+#       hjust  = 0.45,
+#       size   = 18
+#     ),
+#     panel.grid.major.x = element_blank(),
+#     plot.margin = margin(20, 30, 20, 20)
+#   ) +
+#   coord_flip(clip = "off")
+# 
+# print(p)
+
+```
+
+
+
+```{r }
+# Count packages by 'auth'
+df_auth <- df %>%
+  mutate(auth = ifelse(is.na(auth) | auth == "", "NA", auth)) %>%
+  count(auth, name = "package_count") %>%
+  arrange(desc(package_count))
+
+y_max <- max(df_auth$package_count)
+
+p <- ggplot(df_auth, aes(x = reorder(auth, package_count), 
+                         y = package_count, 
+                         fill = auth)) +       # <<< enable conditional color
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = package_count),
+    hjust = -0.1, size = 3.7, fontface = "italic", color = "black"
+  ) +
+  scale_fill_manual(                               # <<< specify colors
+    values = c(
+      "NA" = "#e86c09",                            # special color for NA
+      setNames(rep("#0066B3", nrow(df_auth)-1),   # all others
+               df_auth$auth[df_auth$auth != "NA"])
+    )
+  ) +
+  labs(
+    title = "FHIR Package Count by Authors",
+    x = "Authors",
+    y = "Number of Packages"
+  ) +
+  scale_y_continuous(
+    limits = c(0, y_max * 1.08),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  theme_healthchain(base_size = 14) +
+  theme(
+    legend.position = "none",
+    axis.text.x  = element_text(angle = 60, hjust = 1, size = 0),
+    axis.text.y  = element_text(size = 12),
+    axis.title.x = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(face = "bold", size = 12),
+    plot.title   = element_text(face = "bold", color = "#e86c09",
+                                hjust = 0.5, size = 18),
+    plot.margin  = margin(t = 25, r = 20, b = 10, l = 10)
+  ) +
+  coord_flip(clip = "off")
+
+print(p)
+# Save high-res image
+#ggsave("fhir_packages_by_auth_histogram.png", plot = p, width = 12, height = 10, dpi = 300)
+
+```
+
+
+
+
+```{r fig.dpi=240, fig.height=7, fig.width=8}
+# Years for faceting
+years_of_interest <- c(2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017)
+
+# Count packages by year & auth
+df_auth_year <- df %>%
+  filter(!is.na(date)) %>%
+  mutate(
+    year = year(date),
+    year = factor(year, levels = years_of_interest),
+    auth = ifelse(is.na(auth) | auth == "", "NA", auth)
+  ) %>%
+  filter(year %in% years_of_interest) %>%
+  count(year, auth, name = "package_count")
+
+# Global max for scale
+y_max <- max(df_auth_year$package_count)
+
+# Color mapping
+auth_levels   <- sort(unique(df_auth_year$auth))
+non_na_auth   <- auth_levels[auth_levels != "NA"]
+fill_values <- c(
+  "NA" = "#e86c09",
+  setNames(rep("#0066B3", length(non_na_auth)), non_na_auth)
+)
+
+p <- ggplot(
+  df_auth_year,
+  aes(x = reorder(auth, package_count), y = package_count, fill = auth)
+) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = package_count),
+    hjust = -0.15,
+    size = 2.8,
+    fontface = "italic",
+    color = "black"
+  ) +
+  scale_fill_manual(values = fill_values) +
+  labs(
+    title = "FHIR Package Count by Authors (Faceted by Year)",
+    x = "Authority",    
+    y = "Packages Count"
+  ) +
+  scale_y_continuous(
+    limits = c(0, y_max * 1.10),
+    labels = comma,
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  facet_wrap(
+    ~ year,
+    ncol = 3,
+    scales = "free_x"
+  ) +
+  theme_healthchain(base_size = 14) +
+  theme(
+    legend.position = "none",
+
+    # Remove x-axis text completely
+    axis.text.x  = element_blank(),
+
+    # 🔽 Reduce y-axis text size for better balance
+    axis.text.y  = element_text(size = 10),
+
+    # Keep axis titles clean
+    axis.title.y = element_text(face = "bold", size = 13),
+    
+    axis.title.x = element_text(face = "bold", size = 13),
+
+    plot.title   = element_text(face = "bold", color = "#e86c09",
+                                hjust = 0.5, size = 20),
+
+    # Increase spacing between facet panels for readability
+    panel.spacing = unit(1.4, "lines"),
+
+    plot.margin  = margin(t = 25, r = 20, b = 15, l = 20)
+  ) +
+  coord_flip(clip = "off")
+
+print(p)
+
+```
+
+
+
+```{r}
+
+# Count packages by 'version'
+df_version <- df %>%
+  mutate(version = if_else(is.na(version) | version == "", "NA", version)) %>%
+  count(version, name = "package_count") %>%
+  arrange(desc(package_count))
+
+# Max for scaling
+y_max_ver <- max(df_version$package_count, na.rm = TRUE)
+
+# Safe color mapping: all versions blue, NA (if present) orange
+version_levels <- unique(df_version$version)
+fill_values_ver <- setNames(
+  ifelse(version_levels == "NA", "#e86c09", "#0066B3"),
+  version_levels
+)
+
+p_ver <- ggplot(
+  df_version,
+  aes(
+    x    = reorder(version, package_count),
+    y    = package_count,
+    fill = version
+  )
+) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = package_count),
+    hjust    = -0.1,
+    size     = 3.7,
+    fontface = "italic",
+    color    = "black"
+  ) +
+  scale_fill_manual(values = fill_values_ver) +
+  labs(
+    title = "FHIR Package Count by Versions",
+    x     = "FHIR Version",
+    y     = "Number of Packages"
+  ) +
+  scale_y_continuous(
+    limits = c(0, y_max_ver * 1.08),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  theme_healthchain(base_size = 14) +
+  theme(
+    legend.position = "none",
+    axis.text.x  = element_text(angle = 60, hjust = 1, size = 0),
+    axis.text.y  = element_text(size = 12),
+    axis.title.x = element_text(face = "bold", size = 12),
+    axis.title.y = element_text(face = "bold", size = 12),
+    plot.title   = element_text(
+      face  = "bold",
+      color = "#e86c09",
+      hjust = 0.5,
+      size  = 18
+    ),
+    plot.margin  = margin(t = 25, r = 20, b = 10, l = 10)
+  ) +
+  coord_flip(clip = "off")
+
+print(p_ver)
+
+```
+
+
+```{r fig.dpi=240, fig.height=7, fig.width=8 }
+# Years for faceting
+years_of_interest <- c(2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017)
+
+# Count packages by year & FHIR version
+df_ver_year <- df %>%
+  filter(!is.na(date)) %>%
+  mutate(
+    year = year(date),
+    year = factor(year, levels = years_of_interest),
+    version = ifelse(is.na(version) | version == "", "NA", version)
+  ) %>%
+  filter(year %in% years_of_interest) %>%
+  count(year, version, name = "package_count")
+
+# Global max for scale
+y_max_ver <- max(df_ver_year$package_count)
+
+# Color mapping (NA = orange, others = blue)
+version_levels <- sort(unique(df_ver_year$version))
+non_na_versions <- version_levels[version_levels != "NA"]
+fill_values_ver <- c(
+  "NA" = "#e86c09",
+  setNames(rep("#0066B3", length(non_na_versions)), non_na_versions)
+)
+
+p_ver1 <- ggplot(
+  df_ver_year,
+  aes(x = reorder(version, package_count), y = package_count, fill = version)
+) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = package_count),
+    hjust = -0.15,
+    size = 2.8,
+    fontface = "italic",
+    color = "black"
+  ) +
+  scale_fill_manual(values = fill_values_ver) +
+  labs(
+    title = "FHIR Package Count by FHIR Version (Faceted by Year)",
+    x = "FHIR Version",
+    y = "Packages Count"
+  ) +
+  scale_y_continuous(
+    limits = c(0, y_max_ver * 1.10),
+    labels = comma,
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  facet_wrap(
+    ~ year,
+    ncol = 3,
+    scales = "free_x"
+  ) +
+  theme_healthchain(base_size = 14) +
+  theme(
+    legend.position = "none",
+
+    # Remove x-axis tick labels
+    axis.text.x  = element_blank(),
+
+    # Slightly smaller y labels for balance with axis title
+    axis.text.y  = element_text(size = 10),
+
+    axis.title.y = element_text(face = "bold", size = 13),
+    axis.title.x = element_text(face = "bold", size = 13),
+
+    plot.title   = element_text(
+      face = "bold", color = "#e86c09",
+      hjust = 0.5, size = 18
+    ),
+
+    # Extra space between facets for text readability
+    panel.spacing = unit(1.4, "lines"),
+
+    plot.margin  = margin(t = 25, r = 20, b = 15, l = 20)
+  ) +
+  coord_flip(clip = "off")
+
+print(p_ver1)
+
+
+
+
+```
+
+
+```{r fig.width=12, fig.height=10, fig.dpi=240}
+# ---- Year-wise counts for Version R5 only, with NA bin + color flag ----
+df_yearly_r5 <- df %>%
+  filter(version == "R5") %>%
+  mutate(
+    year       = year(date),
+    year_label = if_else(is.na(year), "NA", as.character(year)),
+    # bar_color is no longer needed if coloring by status
+  ) %>%
+  count(year_label, status, name = "package_count") %>%  # <--- group by year_label AND status!
+  filter(package_count >= 10) %>%
+  mutate(year_num = suppressWarnings(as.numeric(year_label))) %>%
+  arrange(is.na(year_num), year_num)
+
+# ---- Plot ----
+p_r5 <- ggplot(df_yearly_r5, aes(x = year_label, y = package_count, fill = status)) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = package_count),
+    position = position_stack(vjust = 0.5),
+    size = 2.8,
+    fontface = "italic",
+    color = "black"
+  ) +
+  labs(
+    title = "Year-wise FHIR Package Count (Version R5 Only, Colored by Status)",
+    x = "Year",
+    y = "Number of Packages",
+    fill = "Status"
+  ) +
+  theme_healthchain(base_size = 13) +
+  theme(
+    axis.text.x  = element_text(angle = 90, hjust = 1, vjust = 1, face = "bold"),
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    plot.title   = element_text(face = "bold", color = "#e86c09", hjust = 0.5)
+  )
+
+print(p_r5)
+
+
+
+```
+
+
+
+```{r}
+df_years_R5_status <- df %>%
+  filter(version == "R5") %>%
+  mutate(
+    year = lubridate::year(date),
+    year_label = if_else(is.na(year), "NA", as.character(year))
+  ) %>%
+  count(year_label, status, name = "package_count") %>%
+  filter(package_count >= 10) %>%
+  pivot_wider(
+    names_from = status,
+    values_from = package_count,
+    values_fill = 0
+  ) %>%
+  arrange(year_label)
+
+# View the result
+print(df_years_R5_status)
+
+```
+```{r}
+
+# Ensure proper year sort and put NA last
+df_unique_first_year <- df %>%
+  mutate(
+    year_label = if_else(is.na(year(date)), "NA", as.character(year(date)))
+  ) %>%
+  group_by(package) %>%
+  summarize(first_year = min(year_label)) %>%
+  ungroup() %>%
+  count(first_year, name = "unique_package_count") %>%
+  mutate(
+    year_num = suppressWarnings(as.numeric(first_year))
+  ) %>%
+  arrange(year_num) %>%
+  mutate(
+    bar_color = if_else(first_year == "NA", "NA", "non-NA"),
+    first_year = fct_relevel(first_year, c(sort(unique(first_year[first_year != "NA"])), "NA"))
+  )
+
+ggplot(df_unique_first_year, aes(x = first_year, y = unique_package_count, fill = bar_color)) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = unique_package_count),
+    hjust = -0.15,
+    size = 2.8,
+    fontface = "italic",
+    color = "black"
+  ) +
+  scale_fill_manual(
+    values = c(
+      "NA"     = "#e86c09",   # orange for NA bin
+      "non-NA" = "#0066B3"
+    ),
+    guide = "none"
+  ) +
+  labs(
+    title = "Year-wise Unique FHIR Package First Release Count",
+    x = "Year",
+    y = "Number of Packages"
+  ) +
+  theme_healthchain(base_size = 13) +
+  theme(
+    axis.text.x  = element_blank(),
+    axis.text.y  = element_text(face = "bold"),
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    plot.title   = element_text(face = "bold", color = "#e86c09", hjust = 0.5)
+  ) +
+  coord_flip()
+
+```
+
+```{r fig.width=7, fig.height=9, fig.dpi=150}
+
+df_unique_yearly_status <- df %>%
+  mutate(year_label = if_else(is.na(lubridate::year(date)), "NA", as.character(lubridate::year(date)))) %>%
+  distinct(year_label, package, status) %>%  # group by year, package, AND status
+  count(year_label, status, name = "unique_package_count") %>%
+  arrange(year_label)
+
+p_status <- ggplot(df_unique_yearly_status, aes(x = year_label, y = unique_package_count, fill = status)) +
+  geom_col(width = 0.7) +
+  geom_text(
+    aes(label = unique_package_count),
+    position = position_stack(vjust = 0.5),  # recommended for stacked bars
+    size = 2.8,
+    fontface = "italic",
+    color = "black"
+  ) +
+  labs(
+    title = "Year-wise Unique FHIR Package Count (Grouped by Status)",
+    x = "Year",
+    y = "Number of Packages",
+    fill = "Status"
+  ) +
+  theme_healthchain(base_size = 13) +
+  theme(
+    axis.text.x  = element_text(angle = 90, hjust = 1, vjust = 1, face = "bold"),
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    plot.title   = element_text(face = "bold", color = "#e86c09", hjust = 0.5)
+  ) + coord_flip()
+
+print(p_status)
+
+```
+```{r}
+ggplot(df_unique_yearly_status, aes(x = year_label, y = unique_package_count, color = status, group = status)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  scale_color_manual(
+    values = c(
+      "active"      = "#e86c09",
+      "deprecated"  = "#8A2BE2",
+      "draft"       = "#0066B3",
+      "informative" = "#00B36B",
+      "normative"   = "#1CB9C6",
+      "retired"     = "#FFDB58",
+      "trial-use"   = "#757575",
+      "unknown"     = "#962001",
+      "withdrawn"   = "#C20076"
+    ),
+    name = "Status"
+  ) +
+  labs(
+    title = "Year-wise Unique FHIR Package Count by Status",
+    x = "Year",
+    y = "Unique Package Count"
+  ) +
+  theme_healthchain(base_size = 13) +
+  theme(
+    axis.text.x  = element_text(angle = 90, hjust = 1, vjust = 1, face = "bold"),
+    axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_text(face = "bold"),
+    plot.title   = element_text(face = "bold", color = "#e86c09", hjust = 0.5)
+  )
+
+```
+

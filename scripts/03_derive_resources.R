@@ -1,5 +1,5 @@
-source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts/00_setup_packages.R"); 
-source("D:/health-chain-repository/HC Data analysis/FHIR-packages-analysis/scripts/01_config.R")
+source("scripts/00_setup_packages.R")
+source("scripts/01_config.R")
 df <- arrow::read_parquet(file.path(OUT_DIR, "interim/fhir_packages_clean.parquet"))
 
 # Derive resource_type + resource_id from Identity like "Patient/USCorePatient"

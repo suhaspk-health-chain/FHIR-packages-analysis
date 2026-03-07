@@ -1,0 +1,9 @@
+---
+title: "FHIR Packages Analysis"
+---
+
+# Overview
+
+This site documents the extraction, cleaning, EDA, and cross-version resource analysis of FHIR packages from packages2.fhir.org/xig.
+
+![Resources Count by FHIR Versions](images/res_by_version-01.png){width="720" height="350"}
